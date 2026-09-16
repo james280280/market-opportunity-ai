@@ -1,3 +1,4 @@
+# Rerun after production OIDC fix merged to main.
 name: Production AI+Web Smoke Test
 
 on:
