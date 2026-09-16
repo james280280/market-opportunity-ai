@@ -77,7 +77,10 @@ test("evaluation separates opportunity, fit, and evidence metrics", () => {
   assert.equal(evaluation.fitScore > 0, true);
   assert.equal(evaluation.evidenceConfidence, evidence.evidenceConfidence);
   assert.equal(evaluation.evidenceCoverage, 90);
-  assert.equal(evaluation.rankingScore, Math.round((evaluation.opportunityScore * 0.6 + evaluation.fitScore * 0.4) * 10) / 10);
+  assert.equal(
+    evaluation.rankingScore,
+    Math.round((evaluation.opportunityScore * 0.6 + evaluation.fitScore * 0.4) * 10) / 10,
+  );
 });
 
 test("evidence coverage falls when a category has no facts or support", () => {
@@ -104,7 +107,7 @@ test("csv normalization preserves skill and exclusion matching", () => {
 
   const normalizedConstraints: UserConstraints = {
     ...defaultUserConstraints,
-    skills: normalizeCsvEntries("営業, AI, プロダクト"),
+    skills: normalizeCsvEntries("営業, AI, 商品企画"),
     excludedMarkets: normalizeCsvEntries("医療 診断, 規制"),
   };
 
@@ -112,6 +115,7 @@ test("csv normalization preserves skill and exclusion matching", () => {
   assert.equal(normalizedConstraints.skills.length, 3);
   assert.equal(normalizeLooseText(normalizedConstraints.excludedMarkets[0]), "医療診断");
   assert.deepEqual(normalizeSkillList(normalizedConstraints.skills), ["sales", "ai", "product"]);
+  assert.equal(normalizeSkill("商品企画"), "product");
   assert.equal(evaluation.fitBreakdown.skillFit, 100);
 
   const medicalMarket = marketCandidates.find((candidate) => candidate.id === "online-medical-diagnosis");
@@ -191,4 +195,5 @@ test("duplicate signal groups are counted once", () => {
   const metrics = calculateEvidenceMetrics(duplicatedSignalsMarket);
   assert.equal(uniqueSignals.length, evaluationCategories.length - 1);
   assert.equal(metrics.evidenceConfidence, 77.3);
+  assert.equal(metrics.evidenceCoverage, 90);
 });
