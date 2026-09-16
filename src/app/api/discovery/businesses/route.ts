@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const { profile, mode } = parseDiscoveryRequest(body);
     const result = await runWithVercelOidcToken(
       request.headers.get("x-vercel-oidc-token"),
-      () => discoverBusinesses(profile, mode),
+      () => discoverBusinesses(profile, mode, request.signal),
     );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       message.includes("OPENAI_API_KEY") ||
       message.includes("VERCEL_OIDC_TOKEN");
     const timeout = message.includes("Timeout") || message.includes("aborted") || message.includes("timed out");
-    const badInput =
+    const badInput = error instanceof SyntaxError ||
       message.includes("入力") ||
       message.includes("予算") ||
       message.includes("月収") ||
@@ -69,3 +69,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
