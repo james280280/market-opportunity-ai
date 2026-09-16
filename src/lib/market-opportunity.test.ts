@@ -27,15 +27,15 @@ test("weights are normalized and emphasize feasibility for constrained users", (
   assert.ok(weights.risk > weights.customerPain);
 });
 
-test("screening keeps disqualified reasons instead of dropping the market", () => {
+test("budget, time, team and learnable skills are warnings while hard blockers stay explicit", () => {
   const strictConstraints: UserConstraints = {
     ...defaultUserConstraints,
-    budget: 5000000,
-    teamSize: 2,
-    weeklyHours: 10,
-    timeframeMonths: 3,
-    skills: ["sales"],
-    unavailableSkills: ["AI"],
+    budget: 10000,
+    teamSize: 1,
+    weeklyHours: 5,
+    timeframeMonths: 1,
+    skills: [],
+    unavailableSkills: ["medical"],
     excludedMarkets: ["医療診断"],
   };
 
@@ -44,20 +44,32 @@ test("screening keeps disqualified reasons instead of dropping the market", () =
 
   const screening = screenMarket(strictConstraints, medicalMarket);
   assert.equal(screening.passed, false);
-  assert.ok(screening.reasons.some((reason) => reason.includes("予算超過")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("人数超過")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("週投入時間不足")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("期間超過")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("必須スキル不足")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("未保有スキル")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
-  assert.ok(screening.reasons.some((reason) => reason.includes("重大法規制リスク")));
+  assert.ok(screening.warnings.some((warning) => warning.includes("予算")));
+  assert.ok(screening.warnings.some((warning) => warning.includes("人数")));
+  assert.ok(screening.warnings.some((warning) => warning.includes("時間")));
+  assert.ok(screening.warnings.some((warning) => warning.includes("期間")));
+  assert.ok(screening.warnings.some((warning) => warning.includes("今から覚えると有利")));
+  assert.ok(screening.reasons.some((reason) => reason.includes("やりたくない・できない")));
+  assert.ok(screening.reasons.some((reason) => reason.includes("候補から外したい分野")));
+  assert.ok(screening.reasons.some((reason) => reason.includes("法律・安全面")));
 });
 
-test("ranking is deterministic for the same input and keeps passed markets first", () => {
+test("a budget mismatch alone does not disqualify a beginner", () => {
+  const target = marketCandidates.find((candidate) => candidate.id === "manufacturing-maintenance-ai");
+  assert.ok(target);
+  const screening = screenMarket({
+    ...defaultUserConstraints,
+    budget: 10000,
+    skills: ["ai", "sales"],
+    excludedMarkets: [],
+  }, target);
+  assert.equal(screening.passed, true);
+  assert.ok(screening.warnings.some((warning) => warning.includes("予算")));
+});
+
+test("ranking is deterministic for the same input and keeps hard-blocked markets last", () => {
   const firstRun = rankMarkets(defaultUserConstraints, marketCandidates).map((item) => item.market.id);
   const secondRun = rankMarkets(defaultUserConstraints, marketCandidates).map((item) => item.market.id);
-
   assert.deepEqual(firstRun, secondRun);
 
   const evaluated = rankMarkets(defaultUserConstraints, marketCandidates);
@@ -72,7 +84,6 @@ test("evaluation separates opportunity, fit, and evidence metrics", () => {
 
   const evaluation = evaluateMarket(defaultUserConstraints, targetMarket);
   const evidence = calculateEvidenceMetrics(targetMarket);
-
   assert.equal(evaluation.opportunityScore > 0, true);
   assert.equal(evaluation.fitScore > 0, true);
   assert.equal(evaluation.evidenceConfidence, evidence.evidenceConfidence);
@@ -96,7 +107,6 @@ test("evidence coverage falls when a category has no facts or support", () => {
       },
     },
   };
-
   const metrics = calculateEvidenceMetrics(incompleteMarket);
   assert.equal(metrics.evidenceCoverage, 90);
 });
@@ -121,7 +131,7 @@ test("csv normalization preserves skill and exclusion matching", () => {
   const medicalMarket = marketCandidates.find((candidate) => candidate.id === "online-medical-diagnosis");
   assert.ok(medicalMarket);
   const screening = screenMarket(normalizedConstraints, medicalMarket);
-  assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
+  assert.ok(screening.reasons.some((reason) => reason.includes("候補から外したい分野")));
 });
 
 test("skill aliases and unavailable skills affect fit and screening", () => {
@@ -132,15 +142,15 @@ test("skill aliases and unavailable skills affect fit and screening", () => {
     ...defaultUserConstraints,
     skills: normalizeCsvEntries("営業, AI, プロダクト"),
     unavailableSkills: normalizeCsvEntries("AI"),
+    excludedMarkets: [],
   };
 
   const evaluation = evaluateMarket(constraints, targetMarket);
   const screening = screenMarket(constraints, targetMarket);
-
   assert.equal(normalizeSkill("営業"), "sales");
   assert.equal(normalizeSkill("AI"), "ai");
-  assert.equal(evaluation.fitBreakdown.skillFit, 66.7);
-  assert.ok(screening.reasons.some((reason) => reason.includes("未保有スキルに該当: ai")));
+  assert.equal(evaluation.fitBreakdown.skillFit, 50);
+  assert.ok(screening.reasons.some((reason) => reason.includes("AIを使う力")));
 });
 
 test("excluded market matching also checks summary text", () => {
@@ -153,14 +163,10 @@ test("excluded market matching also checks summary text", () => {
   };
 
   const screening = screenMarket(
-    {
-      ...defaultUserConstraints,
-      excludedMarkets: ["物流自動化"],
-    },
+    { ...defaultUserConstraints, excludedMarkets: ["物流自動化"] },
     summaryMatchedMarket,
   );
-
-  assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
+  assert.ok(screening.reasons.some((reason) => reason.includes("候補から外したい分野")));
 });
 
 test("duplicate signal groups are counted once", () => {
@@ -183,10 +189,7 @@ test("duplicate signal groups are counted once", () => {
     categoryEvidence: {
       ...marketCandidates[0].categoryEvidence,
       demand: sharedEvidence,
-      growth: {
-        ...sharedEvidence,
-        id: "shared-signal-copy",
-      },
+      growth: { ...sharedEvidence, id: "shared-signal-copy" },
       demandSupplyGap: uniqueEvidence,
     },
   };
