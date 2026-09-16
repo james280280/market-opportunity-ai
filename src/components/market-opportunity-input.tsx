@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { BusinessModel, RiskTolerance, UserConstraints } from "@/lib/market-opportunity/types";
 import { formatCurrency } from "@/lib/market-opportunity/engine";
 import { normalizeCsvEntries } from "@/lib/market-opportunity/normalize";
+import { MarketOpportunityAiTools } from "@/components/market-opportunity-ai-tools";
 
 type InputScreenProps = {
   draft: UserConstraints;
@@ -56,6 +57,8 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
                 onChange={(event) => setField("freeText", event.target.value)}
               />
             </label>
+
+            <MarketOpportunityAiTools constraints={draft} onApplyConstraints={(next) => onChange(next)} />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <NumberField label="予算 (円)" value={draft.budget} onChange={(value) => setField("budget", value)} />
@@ -187,6 +190,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
             <li>・Opportunity / Fit / Evidence 指標の分離表示</li>
             <li>・条件ベースの重み付けと足切り理由の保持</li>
             <li>・同一入力で同一順位になる決定論的ランキング</li>
+            <li>・AIによる条件整理と未評価の市場仮説生成</li>
           </ul>
         </aside>
       </section>
