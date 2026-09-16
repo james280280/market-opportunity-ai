@@ -82,6 +82,7 @@ export type FitBreakdown = {
 export type ScreeningResult = {
   passed: boolean;
   reasons: string[];
+  warnings: string[];
 };
 
 export type RankedMarket = {
