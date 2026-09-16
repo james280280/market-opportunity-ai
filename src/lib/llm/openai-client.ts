@@ -12,10 +12,12 @@ type LLMRuntimeConfig = {
   provider: "vercel-ai-gateway" | "openai-direct";
 };
 
+type RuntimeEnv = Record<string, string | undefined>;
+
 const toGatewayModel = (model: string) => (model.includes("/") ? model : `openai/${model}`);
 const toDirectOpenAIModel = (model: string) => (model.startsWith("openai/") ? model.slice("openai/".length) : model);
 
-export const resolveLLMRuntimeConfig = (env: NodeJS.ProcessEnv = process.env): LLMRuntimeConfig => {
+export const resolveLLMRuntimeConfig = (env: RuntimeEnv = process.env): LLMRuntimeConfig => {
   const configuredModel = env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
   const gatewayToken = env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN;
 
