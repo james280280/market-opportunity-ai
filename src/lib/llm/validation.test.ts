@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultUserConstraints, marketCandidates } from "@/lib/market-opportunity/data";
 import { rankMarkets } from "@/lib/market-opportunity/engine";
-import { OpenAILLMClient, resolveLLMRuntimeConfig } from "./openai-client";
+import { OpenAILLMClient, resolveLLMRuntimeConfig, runWithVercelOidcToken } from "./openai-client";
 import { applyConstraintSuggestion, parseConstraintSuggestion, parseMarketHypotheses } from "./validation";
 
 const makeHypothesis = (index: number) => ({
@@ -75,6 +75,16 @@ test("Vercel OIDC selects AI Gateway with a provider-prefixed default model", ()
   const config = resolveLLMRuntimeConfig({ VERCEL_OIDC_TOKEN: "test-oidc-token" });
   assert.equal(config.provider, "vercel-ai-gateway");
   assert.equal(config.url, "https://ai-gateway.vercel.sh/v1/responses");
+  assert.equal(config.model, "openai/gpt-5.6-luna");
+});
+
+test("request-scoped Vercel OIDC survives async work and selects AI Gateway", async () => {
+  const config = await runWithVercelOidcToken("request-oidc-token", async () => {
+    await Promise.resolve();
+    return resolveLLMRuntimeConfig({});
+  });
+  assert.equal(config.provider, "vercel-ai-gateway");
+  assert.equal(config.apiKey, "request-oidc-token");
   assert.equal(config.model, "openai/gpt-5.6-luna");
 });
 
