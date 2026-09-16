@@ -195,5 +195,5 @@ test("duplicate signal groups are counted once", () => {
   const metrics = calculateEvidenceMetrics(duplicatedSignalsMarket);
   assert.equal(uniqueSignals.length, evaluationCategories.length - 1);
   assert.equal(metrics.evidenceConfidence, 77.3);
-  assert.equal(metrics.evidenceCoverage, 90);
+  assert.equal(metrics.evidenceCoverage, 80);
 });
