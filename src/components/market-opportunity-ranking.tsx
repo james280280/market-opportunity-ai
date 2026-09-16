@@ -29,6 +29,7 @@ export const RankingScreen = ({ constraints, ranking, onBack, onSelect }: Rankin
           <Badge label={`予算 ${formatCurrency(constraints.budget)}`} />
           <Badge label={`期間 ${constraints.timeframeMonths}か月`} />
           <Badge label={`人数 ${constraints.teamSize}人`} />
+          <Badge label={`週投入 ${constraints.weeklyHours}時間`} />
           <Badge label={`希望モデル ${constraints.preferredBusinessModel}`} />
           <Badge label={`リスク許容度 ${constraints.riskTolerance}`} />
         </div>
@@ -55,6 +56,11 @@ export const RankingScreen = ({ constraints, ranking, onBack, onSelect }: Rankin
                   {!result.screening.passed ? (
                     <p className="text-rose-700">
                       <span className="font-semibold">条件不適合理由:</span> {result.screening.reasons.join(" / ")}
+                    </p>
+                  ) : null}
+                  {result.evidenceCoverage < 100 || result.evidenceConfidence < 70 ? (
+                    <p className="text-amber-700">
+                      <span className="font-semibold">根拠注意:</span> 根拠の信頼度またはカバー率が低いため、順位判断の補助として確認してください。
                     </p>
                   ) : null}
                 </div>

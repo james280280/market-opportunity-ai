@@ -1,8 +1,9 @@
 import { marketCandidates } from "./data";
-import { normalizeLooseText } from "./normalize";
+import { normalizeLooseText, normalizeSkillList } from "./normalize";
 import {
   evaluationCategories,
   type CategoryWeights,
+  type Evidence,
   type FitBreakdown,
   type MarketCandidate,
   type RankedMarket,
@@ -25,6 +26,30 @@ const regulatoryRiskPenalty: Record<RegulatoryRisk, number> = {
   medium: 30,
   high: 55,
   critical: 90,
+};
+
+const getConstraintSkills = (constraints: UserConstraints) => {
+  const availableSkills = new Set(normalizeSkillList(constraints.skills));
+  const unavailableSkills = new Set(normalizeSkillList(constraints.unavailableSkills));
+
+  unavailableSkills.forEach((skill) => {
+    availableSkills.delete(skill);
+  });
+
+  return { availableSkills, unavailableSkills };
+};
+
+export const getUniqueEvidenceSignals = (evidenceItems: Evidence[]) => {
+  const grouped = new Map<string, Evidence>();
+
+  for (const evidence of evidenceItems) {
+    const existing = grouped.get(evidence.signalGroup);
+    if (!existing || evidence.confidence > existing.confidence) {
+      grouped.set(evidence.signalGroup, evidence);
+    }
+  }
+
+  return [...grouped.values()];
 };
 
 export const categoryLabels: Record<(typeof evaluationCategories)[number], string> = {
@@ -62,6 +87,11 @@ export const getCategoryWeights = (constraints: UserConstraints): CategoryWeight
 
   if (constraints.teamSize <= 3) {
     weights.feasibility += 0.35;
+    weights.acquisitionDifficulty += 0.15;
+  }
+
+  if (constraints.weeklyHours <= 20) {
+    weights.feasibility += 0.4;
     weights.acquisitionDifficulty += 0.15;
   }
 
@@ -107,14 +137,20 @@ const calculateOpportunityScore = (market: MarketCandidate, weights: CategoryWei
 };
 
 const calculateFitBreakdown = (constraints: UserConstraints, market: MarketCandidate): FitBreakdown => {
+  const { availableSkills, unavailableSkills } = getConstraintSkills(constraints);
+  const requiredSkills = normalizeSkillList(market.requiredSkills);
   const budgetFit = calculateCapacityFit(market.budgetRequired, constraints.budget);
 
   const teamFit = calculateCapacityFit(market.teamRequired, constraints.teamSize);
 
+  const weeklyHoursFit = calculateCapacityFit(market.weeklyHoursRequired, constraints.weeklyHours);
+
   const timeframeFit = calculateCapacityFit(market.minimumDurationMonths, constraints.timeframeMonths);
 
-  const matchedSkills = market.requiredSkills.filter((skill) => constraints.skills.includes(skill)).length;
-  const skillFit = market.requiredSkills.length === 0 ? 100 : round((matchedSkills / market.requiredSkills.length) * 100);
+  const matchedSkills = requiredSkills.filter(
+    (skill) => availableSkills.has(skill) && !unavailableSkills.has(skill),
+  ).length;
+  const skillFit = requiredSkills.length === 0 ? 100 : round((matchedSkills / requiredSkills.length) * 100);
 
   const regionFit =
     constraints.region === "global"
@@ -143,6 +179,7 @@ const calculateFitBreakdown = (constraints: UserConstraints, market: MarketCandi
   return {
     budgetFit: round(budgetFit),
     teamFit: round(teamFit),
+    weeklyHoursFit: round(weeklyHoursFit),
     timeframeFit: round(timeframeFit),
     skillFit,
     regionFit,
@@ -156,11 +193,12 @@ export const calculateFitScore = (constraints: UserConstraints, market: MarketCa
   const fitScore = round(
     breakdown.budgetFit * 0.2 +
       breakdown.teamFit * 0.15 +
-      breakdown.timeframeFit * 0.15 +
+      breakdown.weeklyHoursFit * 0.1 +
+      breakdown.timeframeFit * 0.1 +
       breakdown.skillFit * 0.2 +
       breakdown.regionFit * 0.1 +
       breakdown.businessModelFit * 0.1 +
-      breakdown.riskFit * 0.1,
+      breakdown.riskFit * 0.05,
   );
 
   return { fitScore, breakdown };
@@ -168,8 +206,9 @@ export const calculateFitScore = (constraints: UserConstraints, market: MarketCa
 
 export const calculateEvidenceMetrics = (market: MarketCandidate) => {
   const evidenceItems = evaluationCategories.map((category) => market.categoryEvidence[category]);
+  const uniqueEvidenceItems = getUniqueEvidenceSignals(evidenceItems);
   const evidenceConfidence = round(
-    evidenceItems.reduce((sum, evidence) => sum + evidence.confidence, 0) / evidenceItems.length,
+    uniqueEvidenceItems.reduce((sum, evidence) => sum + evidence.confidence, 0) / uniqueEvidenceItems.length,
   );
   const coveredCategories = evidenceItems.filter(
     (evidence) => evidence.facts.length > 0 || evidence.supportingEvidence.length > 0,
@@ -181,6 +220,8 @@ export const calculateEvidenceMetrics = (market: MarketCandidate) => {
 
 export const screenMarket = (constraints: UserConstraints, market: MarketCandidate) => {
   const reasons: string[] = [];
+  const { availableSkills, unavailableSkills } = getConstraintSkills(constraints);
+  const requiredSkills = normalizeSkillList(market.requiredSkills);
 
   if (market.budgetRequired > constraints.budget) {
     reasons.push(`予算超過: 必要 ${formatCurrency(market.budgetRequired)} / 上限 ${formatCurrency(constraints.budget)}`);
@@ -190,13 +231,22 @@ export const screenMarket = (constraints: UserConstraints, market: MarketCandida
     reasons.push(`人数超過: 必要 ${market.teamRequired}人 / 上限 ${constraints.teamSize}人`);
   }
 
+  if (market.weeklyHoursRequired > constraints.weeklyHours) {
+    reasons.push(`週投入時間不足: 必要 ${market.weeklyHoursRequired}時間 / 上限 ${constraints.weeklyHours}時間`);
+  }
+
   if (market.minimumDurationMonths > constraints.timeframeMonths) {
     reasons.push(`期間超過: 必要 ${market.minimumDurationMonths}か月 / 上限 ${constraints.timeframeMonths}か月`);
   }
 
-  const missingSkills = market.requiredSkills.filter((skill) => !constraints.skills.includes(skill));
+  const blockedSkills = requiredSkills.filter((skill) => unavailableSkills.has(skill));
+  const missingSkills = requiredSkills.filter((skill) => !availableSkills.has(skill) && !unavailableSkills.has(skill));
   if (missingSkills.length > 0) {
     reasons.push(`必須スキル不足: ${missingSkills.join(", ")}`);
+  }
+
+  if (blockedSkills.length > 0) {
+    reasons.push(`未保有スキルに該当: ${blockedSkills.join(", ")}`);
   }
 
   const normalizedExclusions = constraints.excludedMarkets.map((item) => normalizeLooseText(item)).filter(Boolean);
@@ -222,9 +272,7 @@ export const evaluateMarket = (constraints: UserConstraints, market: MarketCandi
   const { fitScore, breakdown } = calculateFitScore(constraints, market);
   const { evidenceConfidence, evidenceCoverage } = calculateEvidenceMetrics(market);
   const screening = screenMarket(constraints, market);
-  const rankingScore = round(
-    opportunityScore * 0.55 + fitScore * 0.3 + evidenceConfidence * 0.1 + evidenceCoverage * 0.05,
-  );
+  const rankingScore = round(opportunityScore * 0.6 + fitScore * 0.4);
 
   return {
     market,
@@ -254,6 +302,12 @@ export const rankMarkets = (constraints: UserConstraints, markets: MarketCandida
       }
       if (left.fitScore !== right.fitScore) {
         return right.fitScore - left.fitScore;
+      }
+      if (left.evidenceCoverage !== right.evidenceCoverage) {
+        return right.evidenceCoverage - left.evidenceCoverage;
+      }
+      if (left.evidenceConfidence !== right.evidenceConfidence) {
+        return right.evidenceConfidence - left.evidenceConfidence;
       }
       return left.market.id.localeCompare(right.market.id, "ja");
     });

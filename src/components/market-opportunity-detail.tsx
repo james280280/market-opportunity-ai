@@ -52,6 +52,7 @@ export const DetailScreen = ({ result, constraints, onBackToRanking, onBackToInp
               <p>予算上限: {formatCurrency(constraints.budget)}</p>
               <p>必要予算: {formatCurrency(result.market.budgetRequired)}</p>
               <p>必要人数: {result.market.teamRequired}人 / 上限 {constraints.teamSize}人</p>
+              <p>必要週投入時間: {result.market.weeklyHoursRequired}時間 / 上限 {constraints.weeklyHours}時間</p>
               <p>必要期間: {result.market.minimumDurationMonths}か月 / 上限 {constraints.timeframeMonths}か月</p>
             </div>
             <div className="mt-4 rounded-2xl p-4 text-sm ring-1 ring-slate-200">
@@ -129,6 +130,7 @@ const MetricCard = ({ label, value }: { label: string; value: string }) => (
 const fitBreakdownLabels = {
   budgetFit: "予算適合",
   teamFit: "人数適合",
+  weeklyHoursFit: "週投入時間適合",
   timeframeFit: "期間適合",
   skillFit: "スキル適合",
   regionFit: "地域適合",

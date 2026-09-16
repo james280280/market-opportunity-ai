@@ -66,6 +66,11 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
               />
               <NumberField label="人数" value={draft.teamSize} onChange={(value) => setField("teamSize", value)} />
               <NumberField
+                label="週に使える時間"
+                value={draft.weeklyHours}
+                onChange={(value) => setField("weeklyHours", value)}
+              />
+              <NumberField
                 label="目標月商 (円)"
                 value={draft.targetMonthlyRevenue}
                 onChange={(value) => setField("targetMonthlyRevenue", value)}
@@ -114,6 +119,16 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
             </label>
 
             <label className="grid gap-2">
+              <span className="text-sm font-semibold">不足・未保有スキル (カンマ区切り)</span>
+              <input
+                type="text"
+                className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-sky-500"
+                value={draft.unavailableSkills.join(", ")}
+                onChange={(event) => setField("unavailableSkills", normalizeCsvEntries(event.target.value))}
+              />
+            </label>
+
+            <label className="grid gap-2">
               <span className="text-sm font-semibold">除外市場 (カンマ区切り)</span>
               <input
                 type="text"
@@ -151,6 +166,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
                 <SummaryChip label={`予算 ${formatCurrency(draft.budget)}`} />
                 <SummaryChip label={`期間 ${draft.timeframeMonths}か月`} />
                 <SummaryChip label={`人数 ${draft.teamSize}人`} />
+                <SummaryChip label={`週投入 ${draft.weeklyHours}時間`} />
                 <SummaryChip label={`月商目標 ${formatCurrency(draft.targetMonthlyRevenue)}`} />
               </div>
             </div>

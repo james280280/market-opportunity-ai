@@ -1,6 +1,14 @@
 import { evaluationCategories, type Evidence, type MarketCandidate, type UserConstraints } from "./types";
 
-const createEvidence = (subject: string, confidence: number, gaps: string[] = []): Evidence => ({
+const createEvidence = (
+  id: string,
+  signalGroup: string,
+  subject: string,
+  confidence: number,
+  gaps: string[] = [],
+): Evidence => ({
+  id,
+  signalGroup,
   facts: [`${subject} に関する既知のダミー事実を整理済み`],
   inferences: [`${subject} は現時点でも検証優先度が高いと推定`],
   assumptions: [`${subject} の商流は今後12か月は大きく変化しない前提`],
@@ -20,6 +28,8 @@ const createCategoryEvidence = (
     evaluationCategories.map((category) => {
       const isUncovered = uncoveredCategories.includes(category);
       const evidence = createEvidence(
+        `${seed}-${category}`,
+        `${seed}-${category}`,
         `${seed} / ${category}`,
         confidence,
         isUncovered ? ["追加の一次ヒアリングが必要"] : [],
@@ -43,8 +53,10 @@ export const defaultUserConstraints: UserConstraints = {
   freeText: "日本国内で、少人数でも始めやすく、半年以内に検証できるB2B事業を探したい。",
   budget: 8000000,
   skills: ["sales", "operations", "ai", "product"],
+  unavailableSkills: [],
   timeframeMonths: 6,
   teamSize: 3,
+  weeklyHours: 20,
   region: "japan",
   preferredBusinessModel: "subscription",
   targetMonthlyRevenue: 1500000,
@@ -63,6 +75,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["製造", "B2B", "SaaS"],
     budgetRequired: 7000000,
     teamRequired: 3,
+    weeklyHoursRequired: 18,
     minimumDurationMonths: 5,
     requiredSkills: ["ai", "product", "sales"],
     regulatoryRisk: "low",
@@ -92,6 +105,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["飲食", "SaaS", "在庫"],
     budgetRequired: 4500000,
     teamRequired: 2,
+    weeklyHoursRequired: 12,
     minimumDurationMonths: 4,
     requiredSkills: ["product", "operations", "sales"],
     regulatoryRisk: "low",
@@ -121,6 +135,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["越境EC", "運用代行", "D2C"],
     budgetRequired: 9000000,
     teamRequired: 4,
+    weeklyHoursRequired: 28,
     minimumDurationMonths: 6,
     requiredSkills: ["operations", "sales"],
     regulatoryRisk: "medium",
@@ -150,6 +165,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["介護", "IoT", "見守り"],
     budgetRequired: 12000000,
     teamRequired: 4,
+    weeklyHoursRequired: 30,
     minimumDurationMonths: 8,
     requiredSkills: ["hardware", "operations", "sales"],
     regulatoryRisk: "medium",
@@ -179,6 +195,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["営業", "育成", "SaaS"],
     budgetRequired: 6500000,
     teamRequired: 3,
+    weeklyHoursRequired: 16,
     minimumDurationMonths: 4,
     requiredSkills: ["sales", "product", "ai"],
     regulatoryRisk: "low",
@@ -208,6 +225,7 @@ export const marketCandidates: MarketCandidate[] = [
     tags: ["医療診断", "ヘルスケア", "規制"],
     budgetRequired: 15000000,
     teamRequired: 5,
+    weeklyHoursRequired: 35,
     minimumDurationMonths: 9,
     requiredSkills: ["medical", "ai", "product"],
     regulatoryRisk: "critical",

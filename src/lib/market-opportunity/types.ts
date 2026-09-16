@@ -19,6 +19,8 @@ export type RiskTolerance = "low" | "medium" | "high";
 export type RegulatoryRisk = "low" | "medium" | "high" | "critical";
 
 export type Evidence = {
+  id: string;
+  signalGroup: string;
   facts: string[];
   inferences: string[];
   assumptions: string[];
@@ -33,8 +35,10 @@ export type UserConstraints = {
   freeText: string;
   budget: number;
   skills: string[];
+  unavailableSkills: string[];
   timeframeMonths: number;
   teamSize: number;
+  weeklyHours: number;
   region: Region;
   preferredBusinessModel: BusinessModel | "any";
   targetMonthlyRevenue: number;
@@ -52,6 +56,7 @@ export type MarketCandidate = {
   tags: string[];
   budgetRequired: number;
   teamRequired: number;
+  weeklyHoursRequired: number;
   minimumDurationMonths: number;
   requiredSkills: string[];
   regulatoryRisk: RegulatoryRisk;
@@ -68,6 +73,7 @@ export type FitBreakdown = {
   teamFit: number;
   timeframeFit: number;
   skillFit: number;
+  weeklyHoursFit: number;
   regionFit: number;
   businessModelFit: number;
   riskFit: number;
