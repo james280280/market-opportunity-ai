@@ -17,7 +17,7 @@ jobs:
       - name: Check production homepage
         run: |
           set -euo pipefail
-          status=$(curl --silent --show-error \
+          status=$(curl --location --silent --show-error \
             --max-time 30 \
             -o /tmp/home.html \
             -w '%{http_code}' \
@@ -52,7 +52,7 @@ jobs:
           }
           JSON
 
-          status=$(curl --silent --show-error \
+          status=$(curl --location --silent --show-error \
             --max-time 150 \
             --connect-timeout 20 \
             -X POST \
