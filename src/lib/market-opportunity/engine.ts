@@ -207,13 +207,13 @@ export const calculateFitScore = (constraints: UserConstraints, market: MarketCa
 export const calculateEvidenceMetrics = (market: MarketCandidate) => {
   const evidenceItems = evaluationCategories.map((category) => market.categoryEvidence[category]);
   const uniqueEvidenceItems = getUniqueEvidenceSignals(evidenceItems);
-  const evidenceConfidence = round(
-    uniqueEvidenceItems.reduce((sum, evidence) => sum + evidence.confidence, 0) / uniqueEvidenceItems.length,
-  );
-  const coveredCategories = evidenceItems.filter(
+  const evidenceConfidence = uniqueEvidenceItems.length === 0
+    ? 0
+    : round(uniqueEvidenceItems.reduce((sum, evidence) => sum + evidence.confidence, 0) / uniqueEvidenceItems.length);
+  const coveredSignals = uniqueEvidenceItems.filter(
     (evidence) => evidence.facts.length > 0 || evidence.supportingEvidence.length > 0,
   ).length;
-  const evidenceCoverage = round((coveredCategories / evaluationCategories.length) * 100);
+  const evidenceCoverage = round((coveredSignals / evaluationCategories.length) * 100);
 
   return { evidenceConfidence, evidenceCoverage };
 };
