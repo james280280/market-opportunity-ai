@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test ./src/lib/market-opportunity.test.ts ./src/lib/llm/validation.test.ts ./src/lib/business-fit/engine.test.ts"
+    "test": "tsx --test ./src/lib/market-opportunity.test.ts ./src/lib/llm/validation.test.ts ./src/lib/business-fit/engine.test.ts ./src/lib/business-discovery/service.test.ts"
   },
   "dependencies": {
     "next": "16.3.5",

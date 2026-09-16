@@ -4,17 +4,51 @@ import { useMemo, useState } from "react";
 import { businessCandidates, defaultBusinessProfile } from "@/lib/business-fit/data";
 import { formatYen, rankBusinesses } from "@/lib/business-fit/engine";
 import type { BusinessDiscoveryMode, BusinessProfile } from "@/lib/business-fit/types";
+import type { BusinessDiscoveryResponse, LiveBusinessResult } from "@/lib/business-discovery/types";
 
 const splitCsv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+type ApiError = { error?: string };
 
 export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) => {
   const [draft, setDraft] = useState<BusinessProfile>(defaultBusinessProfile);
   const [submitted, setSubmitted] = useState<BusinessProfile>(defaultBusinessProfile);
   const [hasRun, setHasRun] = useState(false);
+  const [liveResult, setLiveResult] = useState<BusinessDiscoveryResponse | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const ranking = useMemo(() => rankBusinesses(submitted, businessCandidates, mode), [submitted, mode]);
 
   const setField = <Key extends keyof BusinessProfile>(key: Key, value: BusinessProfile[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const runQuickRanking = () => {
+    setSubmitted({ ...draft });
+    setHasRun(true);
+    setLiveResult(null);
+    setLiveError(null);
+  };
+
+  const runLiveDiscovery = async () => {
+    setLiveLoading(true);
+    setLiveError(null);
+    setSubmitted({ ...draft });
+    try {
+      const response = await fetch("/api/discovery/businesses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: draft, mode }),
+      });
+      const payload = (await response.json()) as BusinessDiscoveryResponse & ApiError;
+      if (!response.ok) throw new Error(payload.error || `検索に失敗しました (${response.status})`);
+      setLiveResult(payload);
+      setHasRun(false);
+    } catch (error) {
+      setLiveError(error instanceof Error ? error.message : "AI+Web検索に失敗しました");
+    } finally {
+      setLiveLoading(false);
+    }
   };
 
   return (
@@ -24,8 +58,7 @@ export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) =
           className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8"
           onSubmit={(event) => {
             event.preventDefault();
-            setSubmitted({ ...draft });
-            setHasRun(true);
+            runQuickRanking();
           }}
         >
           <div className="mb-6">
@@ -88,29 +121,61 @@ export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) =
               </select>
             </label>
 
-            <button className="rounded-full bg-violet-700 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-800" type="submit">
-              {mode === "hybrid" ? "市場の強さも含めておすすめを見る" : "自分に合う順でおすすめを見る"}
-            </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button className="rounded-full border border-violet-300 bg-white px-6 py-3 text-sm font-semibold text-violet-800 hover:bg-violet-50" type="submit" disabled={liveLoading}>
+                すぐおすすめを見る
+              </button>
+              <button
+                className="rounded-full bg-violet-700 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={liveLoading}
+                onClick={runLiveDiscovery}
+              >
+                {liveLoading ? "AIとWebで調査中…" : "AI + Webで100候補から探す"}
+              </button>
+            </div>
+
+            <p className="text-center text-xs leading-5 text-slate-500">
+              「すぐおすすめ」は仮データ10件です。AI+Web検索は100案を作り、相性の良い15案を現在のWeb情報で調べて上位10件を出します。
+            </p>
           </div>
         </form>
 
         <aside className="rounded-3xl bg-slate-900 p-6 text-white shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold">点数の意味</h2>
+          <h2 className="text-xl font-semibold">2つの探し方</h2>
           <div className="mt-5 grid gap-4 text-sm leading-6 text-slate-200">
-            <p><span className="font-semibold text-white">あなたとの相性</span>：予算、時間、得意なこと、早く売上がほしいか、リスクなどから計算。</p>
-            <p><span className="font-semibold text-white">市場の強さ</span>：その分野自体に需要や伸びしろがありそうか。今はMVP用の仮データです。</p>
-            <p><span className="font-semibold text-white">総合</span>：③のモードだけで使います。市場の強さ50% + あなたとの相性50%。</p>
-            <p className="rounded-2xl bg-slate-800 p-4 text-slate-300">AIが気分で順位を決めるのではなく、同じ条件なら同じ結果になる固定ルールで計算しています。</p>
+            <p><span className="font-semibold text-white">すぐおすすめ</span>：10個のサンプル候補で瞬時に確認。使い方を試す用。</p>
+            <p><span className="font-semibold text-white">AI + Web</span>：あなたの条件から100個の事業案を作り、上位候補をWebで現在の需要・競争・収益性まで調査。</p>
+            <p><span className="font-semibold text-white">あなたとの相性</span>：予算、時間、得意なこと、売上までの速さ、リスクなどから固定ルールで計算。</p>
+            <p><span className="font-semibold text-white">市場の強さ</span>：Web調査時は需要・成長・競争・収益性・始めやすさから計算。</p>
+            <p className="rounded-2xl bg-slate-800 p-4 text-slate-300">AI+Web検索は通常より時間がかかります。検索結果には参照したサイトを表示します。</p>
           </div>
         </aside>
       </section>
 
+      {liveLoading ? (
+        <section className="rounded-3xl border border-violet-200 bg-violet-50 p-6 text-sm text-violet-950">
+          <p className="font-semibold">100候補を作って、Web調査しています。</p>
+          <p className="mt-2 text-violet-800">候補作成 → あなたとの相性で15件に絞る → 現在のWeb情報を調査 → TOP10作成、の順で進みます。</p>
+        </section>
+      ) : null}
+
+      {liveError ? (
+        <section className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">
+          <p className="font-semibold">AI+Web検索を完了できませんでした</p>
+          <p className="mt-2">{liveError}</p>
+          <p className="mt-2 text-xs">下の「すぐおすすめ」はAI接続なしでも使えます。</p>
+        </section>
+      ) : null}
+
+      {liveResult ? <LiveRanking result={liveResult} mode={mode} /> : null}
+
       {hasRun ? (
         <section className="grid gap-4">
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <p className="text-sm font-semibold text-violet-700">おすすめ {ranking.length}件</p>
+            <p className="text-sm font-semibold text-violet-700">サンプル候補 {ranking.length}件</p>
             <h2 className="mt-2 text-2xl font-bold">{mode === "hybrid" ? "市場の強さと自分との相性を両方見た結果" : "自分に合いやすい順"}</h2>
-            <p className="mt-2 text-sm text-slate-600">「向いている・向いていない」を断定せず、どこが合うか・どこを工夫すればいいかを表示します。</p>
+            <p className="mt-2 text-sm text-slate-600">これは固定のサンプル候補です。より広く探す場合は上の「AI + Webで100候補から探す」を使ってください。</p>
           </div>
 
           {ranking.map((result, index) => (
@@ -134,30 +199,18 @@ export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) =
 
                 <div className="grid min-w-full gap-3 sm:grid-cols-3 lg:min-w-[430px]">
                   <Score label="あなたとの相性" help="予算・時間・得意なこととの合いやすさ" value={result.personalFitScore} />
-                  <Score label="市場の強さ" help="需要や伸びしろの仮スコア" value={result.marketOpportunityScore} />
+                  <Score label="市場の強さ" help="サンプル用の仮スコア" value={result.marketOpportunityScore} />
                   <Score label="総合" help="市場と相性を半分ずつ" value={result.combinedScore} emphasize={mode === "hybrid"} />
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
-                  {Object.entries(result.breakdown).map(([key, value]) => (
-                    <div key={key} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                      <p className="text-xs text-slate-500">{breakdownLabels[key as keyof typeof breakdownLabels]}</p>
-                      <p className="mt-1 font-semibold">{Math.round(value)}点</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
-                  <p className="text-sm font-semibold text-violet-900">最初の7日でやること</p>
-                  <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
-                    {result.business.first7Days.map((step) => <li key={step}>{step}</li>)}
-                  </ol>
-                  <div className="mt-3 text-xs leading-5 text-slate-600">
-                    小さく試す予算目安 {formatYen(result.business.requiredBudget)} / 週 {result.business.requiredWeeklyHours}時間 / 初売上までの目安 {result.business.monthsToFirstRevenue}か月
-                  </div>
-                </div>
-              </div>
+              <ResultDetails
+                breakdown={result.breakdown}
+                budget={result.business.requiredBudget}
+                weeklyHours={result.business.requiredWeeklyHours}
+                months={result.business.monthsToFirstRevenue}
+                first7Days={result.business.first7Days}
+              />
             </article>
           ))}
         </section>
@@ -165,6 +218,88 @@ export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) =
     </main>
   );
 };
+
+const LiveRanking = ({ result, mode }: { result: BusinessDiscoveryResponse; mode: BusinessDiscoveryMode }) => (
+  <section className="grid gap-4">
+    <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-violet-200">
+      <p className="text-sm font-semibold text-violet-700">AI + Web 調査結果</p>
+      <h2 className="mt-2 text-2xl font-bold">100候補から絞ったTOP {result.ranking.length}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        AIが{result.poolSize}案を作成 → あなたとの相性で{result.shortlistedCount}案に絞る → Webで{result.researchedCount}案を調査しました。
+        {mode === "hybrid" ? "順位は相性50% + 市場の強さ50%。" : "順位は相性70% + 市場の強さ30%。"}
+      </p>
+    </div>
+
+    {result.ranking.map((item, index) => <LiveResultCard key={item.business.id} result={item} index={index} />)}
+  </section>
+);
+
+const LiveResultCard = ({ result, index }: { result: LiveBusinessResult; index: number }) => (
+  <article className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <div className="flex flex-col gap-5 lg:flex-row lg:justify-between">
+      <div className="max-w-3xl">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-800">#{index + 1}</span>
+          <h3 className="text-xl font-semibold">{result.business.name}</h3>
+          <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">Web調査済み</span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{result.business.summary}</p>
+        <p className="mt-3 text-sm"><span className="font-semibold">合いやすい理由:</span> {result.topReasons.join(" / ")}</p>
+        <p className="mt-2 text-sm"><span className="font-semibold">注意点:</span> {result.business.maxRisk}</p>
+        <div className="mt-4 rounded-2xl bg-sky-50 p-4 text-sm leading-6 text-sky-950 ring-1 ring-sky-100">
+          <p className="font-semibold">今の市場を調べた結果</p>
+          <p className="mt-1">{result.researchSummary}</p>
+          <p className="mt-2 text-xs text-sky-800">調査の確かさ: {Math.round(result.confidence)}点</p>
+          {result.sources.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {result.sources.map((source) => (
+                <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="rounded-full bg-white px-3 py-1 text-xs font-medium text-sky-800 underline decoration-sky-300 underline-offset-2 ring-1 ring-sky-200">
+                  {source.title}
+                </a>
+              ))}
+            </div>
+          ) : <p className="mt-2 text-xs text-amber-800">参照URLを確認できなかったため、この候補の調査確信度は低めに補正しています。</p>}
+        </div>
+      </div>
+
+      <div className="grid min-w-full gap-3 sm:grid-cols-3 lg:min-w-[430px]">
+        <Score label="あなたとの相性" help="予算・時間・得意なこととの合いやすさ" value={result.personalFitScore} />
+        <Score label="市場の強さ" help="現在のWeb情報から計算" value={result.marketOpportunityScore} />
+        <Score label="AI+Web総合" help="このランキングに使った点数" value={result.finalScore} emphasize />
+      </div>
+    </div>
+
+    <ResultDetails
+      breakdown={result.breakdown}
+      budget={result.business.requiredBudget}
+      weeklyHours={result.business.requiredWeeklyHours}
+      months={result.business.monthsToFirstRevenue}
+      first7Days={result.business.first7Days}
+    />
+  </article>
+);
+
+const ResultDetails = ({ breakdown, budget, weeklyHours, months, first7Days }: { breakdown: LiveBusinessResult["breakdown"]; budget: number; weeklyHours: number; months: number; first7Days: string[] }) => (
+  <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+      {Object.entries(breakdown).map(([key, value]) => (
+        <div key={key} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+          <p className="text-xs text-slate-500">{breakdownLabels[key as keyof typeof breakdownLabels]}</p>
+          <p className="mt-1 font-semibold">{Math.round(value)}点</p>
+        </div>
+      ))}
+    </div>
+    <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
+      <p className="text-sm font-semibold text-violet-900">最初の7日でやること</p>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
+        {first7Days.map((step) => <li key={step}>{step}</li>)}
+      </ol>
+      <div className="mt-3 text-xs leading-5 text-slate-600">
+        小さく試す予算目安 {formatYen(budget)} / 週 {weeklyHours}時間 / 初売上までの目安 {months}か月
+      </div>
+    </div>
+  </div>
+);
 
 const NumberField = ({ label, help, value, onChange }: { label: string; help?: string; value: number; onChange: (value: number) => void }) => (
   <label className="grid gap-2">
