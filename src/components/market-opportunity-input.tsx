@@ -106,6 +106,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
             <label className="grid gap-2">
               <span className="text-sm font-semibold">保有スキル (カンマ区切り)</span>
               <input
+                type="text"
                 className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-sky-500"
                 value={draft.skills.join(", ")}
                 onChange={(event) => setField("skills", normalizeCsvEntries(event.target.value))}
@@ -115,6 +116,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
             <label className="grid gap-2">
               <span className="text-sm font-semibold">除外市場 (カンマ区切り)</span>
               <input
+                type="text"
                 className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-sky-500"
                 value={draft.excludedMarkets.join(", ")}
                 onChange={(event) => setField("excludedMarkets", normalizeCsvEntries(event.target.value))}

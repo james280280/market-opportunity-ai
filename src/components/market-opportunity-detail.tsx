@@ -71,7 +71,7 @@ export const DetailScreen = ({ result, constraints, onBackToRanking, onBackToInp
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold">Fit breakdown</h2>
+            <h2 className="text-xl font-semibold">適合度の内訳</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {Object.entries(result.fitBreakdown).map(([key, value]) => (
                 <div key={key} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
