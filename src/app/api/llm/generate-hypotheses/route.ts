@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OpenAILLMClient } from "@/lib/llm/openai-client";
+import { OpenAILLMClient, runWithVercelOidcToken } from "@/lib/llm/openai-client";
 import type { GenerateHypothesesRequest } from "@/lib/llm/types";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -18,7 +18,10 @@ export async function POST(request: Request) {
     }
 
     const client = new OpenAILLMClient();
-    const hypotheses = await client.generateMarketHypotheses(body as unknown as GenerateHypothesesRequest);
+    const hypotheses = await runWithVercelOidcToken(
+      request.headers.get("x-vercel-oidc-token"),
+      () => client.generateMarketHypotheses(body as unknown as GenerateHypothesesRequest),
+    );
     return NextResponse.json({ hypotheses });
   } catch (error) {
     const message = error instanceof Error ? error.message : "市場仮説の生成に失敗しました";
