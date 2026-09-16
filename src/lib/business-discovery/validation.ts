@@ -41,6 +41,7 @@ export const parseDiscoveryRequest = (value: unknown): { profile: BusinessProfil
   }
   if (typeof riskTolerance !== "string" || !riskLevels.has(riskTolerance as RiskTolerance)) throw new Error("リスク設定が正しくありません");
   if (!isStringArray(interests) || !isStringArray(avoid)) throw new Error("興味・避けたいことの形式が正しくありません");
+  if ([...interests, ...avoid].some((item) => item.length > 100)) throw new Error("興味・避けたいことは1項目100文字以内で入力してください");
   if (interests.length > 30 || avoid.length > 30) throw new Error("入力項目が多すぎます");
 
   return {
@@ -64,3 +65,4 @@ export const parseDiscoveryRequest = (value: unknown): { profile: BusinessProfil
     },
   };
 };
+

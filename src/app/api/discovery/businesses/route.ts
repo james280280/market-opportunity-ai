@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAIServiceError } from "@/lib/llm/service-error";
 import { discoverBusinesses } from "@/lib/business-discovery/service";
 import { parseDiscoveryRequest } from "@/lib/business-discovery/validation";
 import { runWithVercelOidcToken } from "@/lib/llm/openai-client";
@@ -45,10 +46,12 @@ export async function POST(request: Request) {
     const { profile, mode } = parseDiscoveryRequest(body);
     const result = await runWithVercelOidcToken(
       request.headers.get("x-vercel-oidc-token"),
-      () => discoverBusinesses(profile, mode),
+      () => discoverBusinesses(profile, mode, request.signal),
     );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    const serviceError = getAIServiceError(error);
+    if (serviceError) return NextResponse.json({ error: serviceError.error }, { status: serviceError.status });
     const message = error instanceof Error ? error.message : "AI+Web検索に失敗しました";
     const authError =
       message.includes("AI authentication is not configured") ||
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
       message.includes("OPENAI_API_KEY") ||
       message.includes("VERCEL_OIDC_TOKEN");
     const timeout = message.includes("Timeout") || message.includes("aborted") || message.includes("timed out");
-    const badInput =
+    const badInput = error instanceof SyntaxError ||
       message.includes("入力") ||
       message.includes("予算") ||
       message.includes("月収") ||
@@ -69,3 +72,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

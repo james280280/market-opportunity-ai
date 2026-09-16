@@ -114,6 +114,7 @@ export const evaluateBusiness = (profile: BusinessProfile, business: BusinessCan
   const blockers = collectBlockers(profile, business);
   const topReasons = (Object.entries(breakdown) as Array<[keyof BusinessFitBreakdown, number]>)
     .sort((left, right) => right[1] - left[1])
+    .filter(([, score]) => score >= 70)
     .slice(0, 3)
     .map(([key]) => breakdownLabels[key]);
 
@@ -146,3 +147,4 @@ export const rankBusinesses = (
 
 export const formatYen = (value: number) =>
   new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(value);
+

@@ -1,4 +1,4 @@
-import type { BusinessCandidate, BusinessFitBreakdown } from "@/lib/business-fit/types";
+import type { BusinessCandidate, BusinessDiscoveryMode, BusinessFitBreakdown } from "@/lib/business-fit/types";
 
 export type WebResearchSource = {
   title: string;
@@ -27,14 +27,18 @@ export type LiveBusinessResult = {
   blocked: boolean;
   blockers: string[];
   topReasons: string[];
+  researchStatus: "verified" | "unverified" | "unavailable";
   researchSummary: string;
   sources: WebResearchSource[];
 };
 
 export type BusinessDiscoveryResponse = {
+  mode: BusinessDiscoveryMode;
+  warnings: string[];
   poolSize: number;
   shortlistedCount: number;
   researchedCount: number;
   generatedAt: string;
   ranking: LiveBusinessResult[];
 };
+

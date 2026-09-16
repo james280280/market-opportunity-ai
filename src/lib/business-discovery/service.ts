@@ -137,6 +137,7 @@ const requestStructured = async <T>(options: {
   validate: (value: unknown) => T;
   webSearch?: boolean;
   maxOutputTokens?: number;
+  signal: AbortSignal;
 }): Promise<{ value: T; sources: WebResearchSource[] }> => {
   const config = resolveLLMRuntimeConfig();
   const attempts = options.webSearch ? 1 : 2;
@@ -146,7 +147,7 @@ const requestStructured = async <T>(options: {
     const response = await fetch(config.url, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(options.webSearch ? 55000 : 45000),
+      signal: AbortSignal.any([options.signal, AbortSignal.timeout(options.webSearch ? 55000 : 45000)]),
       body: JSON.stringify({
         model: config.model,
         store: false,
@@ -261,9 +262,14 @@ export const calculateMarketOpportunityScore = (research: BusinessMarketResearch
     research.entryEase * 0.1,
 );
 
-const generateCandidates = async (profile: BusinessProfile) => {
+// Shrink uncertain estimates toward the neutral baseline; confidence is not a success probability.
+export const calculateConfidenceAdjustedMarketScore = (research: BusinessMarketResearch) =>
+  round(50 + (calculateMarketOpportunityScore(research) - 50) * clamp(research.confidence) / 100);
+
+const generateCandidates = async (profile: BusinessProfile, signal: AbortSignal) => {
   const result = await requestStructured({
     name: "personal_business_candidate_pool",
+    signal,
     schema: candidateSchema,
     maxOutputTokens: 36000,
     instructions: [
@@ -284,7 +290,7 @@ const generateCandidates = async (profile: BusinessProfile) => {
   return result.value;
 };
 
-const researchBatch = async (candidates: BusinessCandidate[]) => {
+const researchBatch = async (candidates: BusinessCandidate[], signal: AbortSignal) => {
   const expectedIds = new Set(candidates.map((candidate) => candidate.id));
   const schema = {
     type: "object",
@@ -297,6 +303,7 @@ const researchBatch = async (candidates: BusinessCandidate[]) => {
 
   const result = await requestStructured({
     name: "business_web_market_research",
+    signal,
     schema,
     webSearch: true,
     maxOutputTokens: 10000,
@@ -326,14 +333,18 @@ const matchCandidateSources = (
   return research.sourceUrls
     .map((url) => byUrl.get(normalizeSourceUrl(url)))
     .filter((source): source is WebResearchSource => Boolean(source))
+    .filter((source, index, sources) => sources.findIndex((item) => item.url === source.url) === index)
     .slice(0, 5);
 };
 
 export const discoverBusinesses = async (
   profile: BusinessProfile,
   mode: BusinessDiscoveryMode,
+  requestSignal?: AbortSignal,
 ): Promise<BusinessDiscoveryResponse> => {
-  const candidates = await generateCandidates(profile);
+  const deadline = AbortSignal.timeout(110000);
+  const signal = requestSignal ? AbortSignal.any([deadline, requestSignal]) : deadline;
+  const candidates = await generateCandidates(profile, signal);
   const preRanked = candidates
     .map((business) => evaluateBusiness(profile, business))
     .sort((left, right) => {
@@ -342,24 +353,32 @@ export const discoverBusinesses = async (
       return left.business.id.localeCompare(right.business.id, "ja");
     });
 
-  const shortlist = preRanked.slice(0, RESEARCH_SHORTLIST_SIZE);
+  const shortlist = preRanked.filter((item) => !item.blocked).slice(0, RESEARCH_SHORTLIST_SIZE);
   const batches = [shortlist.slice(0, 5), shortlist.slice(5, 10), shortlist.slice(10, 15)].filter((batch) => batch.length > 0);
-  const researchedBatches = await Promise.all(batches.map((batch) => researchBatch(batch.map((item) => item.business))));
+  const researchedBatches = await Promise.allSettled(batches.map((batch) => researchBatch(batch.map((item) => item.business), signal)));
+  requestSignal?.throwIfAborted();
+  const warnings: string[] = [];
+  if (shortlist.length === 0) warnings.push("今の条件に合う候補がありません。避けたいことや運営条件を見直して再検索してください。");
+  if (researchedBatches.some((batch) => batch.status === "rejected")) warnings.push("一部のWeb調査を完了できませんでした。未調査の市場評価は暫定50点で表示しています。");
 
   const researchById = new Map<string, { research: BusinessMarketResearch; sources: WebResearchSource[] }>();
-  for (const batch of researchedBatches) {
+  for (const outcome of researchedBatches) {
+    if (outcome.status !== "fulfilled") continue;
+    const batch = outcome.value;
     for (const research of batch.value) {
       const sources = matchCandidateSources(research, batch.sources);
       researchById.set(research.candidateId, {
-        research: { ...research, confidence: sources.length === 0 ? Math.min(research.confidence, 35) : research.confidence },
+        research: { ...research, confidence: sources.length === 0 ? 0 : research.confidence },
         sources,
       });
     }
   }
 
+  if ([...researchById.values()].some((item) => item.sources.length === 0)) warnings.push("参照元を確認できない候補があります。その市場評価は順位に反映せず、暫定50点としています。");
+
   const ranked: LiveBusinessResult[] = shortlist.map((preResult) => {
     const researched = researchById.get(preResult.business.id);
-    const marketOpportunityScore = researched ? calculateMarketOpportunityScore(researched.research) : 50;
+    const marketOpportunityScore = researched ? calculateConfidenceAdjustedMarketScore(researched.research) : 50;
     const finalScore = round(
       mode === "hybrid"
         ? preResult.personalFitScore * 0.5 + marketOpportunityScore * 0.5
@@ -375,7 +394,8 @@ export const discoverBusinesses = async (
       blocked: preResult.blocked,
       blockers: preResult.blockers,
       topReasons: preResult.topReasons,
-      researchSummary: researched?.research.summary ?? "Web調査結果を取得できなかったため、市場評価の確信度は低めです。",
+      researchStatus: !researched ? "unavailable" : researched.sources.length === 0 ? "unverified" : "verified",
+      researchSummary: researched?.research.summary ?? "Web調査結果を取得できませんでした。市場の強さは未評価のため暫定50点です。",
       sources: researched?.sources ?? [],
     };
   });
@@ -389,10 +409,13 @@ export const discoverBusinesses = async (
   });
 
   return {
+    mode,
+    warnings,
     poolSize: candidates.length,
     shortlistedCount: shortlist.length,
-    researchedCount: researchById.size,
+    researchedCount: [...researchById.values()].filter((item) => item.sources.length > 0).length,
     generatedAt: new Date().toISOString(),
     ranking: ranked.slice(0, FINAL_RESULT_SIZE),
   };
 };
+

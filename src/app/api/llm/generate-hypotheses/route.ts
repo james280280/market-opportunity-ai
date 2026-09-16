@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAIServiceError } from "@/lib/llm/service-error";
 import { OpenAILLMClient, runWithVercelOidcToken } from "@/lib/llm/openai-client";
 import type { GenerateHypothesesRequest } from "@/lib/llm/types";
 
@@ -24,7 +25,10 @@ export async function POST(request: Request) {
     );
     return NextResponse.json({ hypotheses });
   } catch (error) {
+    const serviceError = getAIServiceError(error);
+    if (serviceError) return NextResponse.json({ error: serviceError.error }, { status: serviceError.status });
     const message = error instanceof Error ? error.message : "市場仮説の生成に失敗しました";
     return NextResponse.json({ error: message }, { status: isConfigurationError(message) ? 503 : 500 });
   }
 }
+

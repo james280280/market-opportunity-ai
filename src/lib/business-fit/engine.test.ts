@@ -47,3 +47,10 @@ test("insufficient budget reduces budget fit", () => {
   const enoughBudget = evaluateBusiness({ ...defaultBusinessProfile, startingBudget: 200000 }, business);
   assert.ok(lowBudget.breakdown.budgetFit < enoughBudget.breakdown.budgetFit);
 });
+
+
+test("weak matches are not presented as positive recommendations", () => {
+  const profile = { ...defaultBusinessProfile, startingBudget: 0, weeklyHours: 0, targetMonthlyIncome: 100000000, timeToFirstRevenueMonths: 1, salesComfort: 1, technicalComfort: 1, aiComfort: 1, localServiceOkay: false, riskTolerance: "low" as const, interests: ["unrelated-interest"], freeText: "" };
+  const candidate = { ...businessCandidates[0], requiredBudget: 100000, requiredWeeklyHours: 100, estimatedMonthlyIncomePotential: 1, monthsToFirstRevenue: 60, salesIntensity: 5, technicalIntensity: 5, aiLeverage: 5, minimumTeamSize: 5, localServiceRequired: true, inventoryRequired: true, faceOnCameraRequired: true, riskLevel: "high" as const };
+  assert.deepEqual(evaluateBusiness(profile, candidate).topReasons, []);
+});
