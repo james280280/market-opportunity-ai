@@ -28,6 +28,7 @@ export type BusinessCandidate = {
   requiredBudget: number;
   requiredWeeklyHours: number;
   monthsToFirstRevenue: number;
+  estimatedMonthlyIncomePotential: number;
   minimumTeamSize: number;
   salesIntensity: number;
   technicalIntensity: number;
@@ -46,6 +47,7 @@ export type BusinessFitBreakdown = {
   timeFit: number;
   capabilityFit: number;
   monetizationSpeedFit: number;
+  incomeGoalFit: number;
   operatingStyleFit: number;
   riskFit: number;
   interestFit: number;
