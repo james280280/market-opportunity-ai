@@ -5,6 +5,11 @@ import type { GenerateHypothesesRequest } from "@/lib/llm/types";
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isConfigurationError = (message: string) =>
+  message.includes("AI authentication is not configured") ||
+  message.includes("AI_GATEWAY_API_KEY") ||
+  message.includes("OPENAI_API_KEY");
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as unknown;
@@ -17,7 +22,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ hypotheses });
   } catch (error) {
     const message = error instanceof Error ? error.message : "市場仮説の生成に失敗しました";
-    const configurationError = message.includes("OPENAI_API_KEY") || message.includes("OPENAI_MODEL");
-    return NextResponse.json({ error: message }, { status: configurationError ? 503 : 500 });
+    return NextResponse.json({ error: message }, { status: isConfigurationError(message) ? 503 : 500 });
   }
 }
