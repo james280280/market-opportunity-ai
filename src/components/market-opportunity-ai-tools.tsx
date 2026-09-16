@@ -18,6 +18,11 @@ const readJson = async <T,>(response: Response): Promise<T> => {
   return payload;
 };
 
+const isAuthConfigurationError = (message: string) =>
+  message.includes("AI authentication is not configured") ||
+  message.includes("AI_GATEWAY_API_KEY") ||
+  message.includes("OPENAI_API_KEY");
+
 export const MarketOpportunityAiTools = ({ constraints, onApplyConstraints }: Props) => {
   const [suggestion, setSuggestion] = useState<ParsedConstraintSuggestion | null>(null);
   const [hypotheses, setHypotheses] = useState<GeneratedMarketHypothesis[]>([]);
@@ -92,8 +97,10 @@ export const MarketOpportunityAiTools = ({ constraints, onApplyConstraints }: Pr
       {error ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           {error}
-          {error.includes("OPENAI_") ? (
-            <p className="mt-1 text-xs">サーバー側に OPENAI_API_KEY と OPENAI_MODEL の設定が必要です。</p>
+          {isAuthConfigurationError(error) ? (
+            <p className="mt-1 text-xs">
+              Vercel本番ではOIDC自動認証を使用します。ローカル実行では AI_GATEWAY_API_KEY または OPENAI_API_KEY が必要です。
+            </p>
           ) : null}
         </div>
       ) : null}

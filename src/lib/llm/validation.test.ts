@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultUserConstraints, marketCandidates } from "@/lib/market-opportunity/data";
 import { rankMarkets } from "@/lib/market-opportunity/engine";
-import { OpenAILLMClient } from "./openai-client";
+import { OpenAILLMClient, resolveLLMRuntimeConfig } from "./openai-client";
 import { applyConstraintSuggestion, parseConstraintSuggestion, parseMarketHypotheses } from "./validation";
 
 const makeHypothesis = (index: number) => ({
@@ -71,21 +71,49 @@ test("AI hypothesis validation does not alter deterministic ranking inputs", () 
   assert.deepEqual(after, before);
 });
 
-test("OpenAI client fails clearly when API configuration is missing", async () => {
-  const previousKey = process.env.OPENAI_API_KEY;
+test("Vercel OIDC selects AI Gateway with a provider-prefixed default model", () => {
+  const config = resolveLLMRuntimeConfig({ VERCEL_OIDC_TOKEN: "test-oidc-token" });
+  assert.equal(config.provider, "vercel-ai-gateway");
+  assert.equal(config.url, "https://ai-gateway.vercel.sh/v1/responses");
+  assert.equal(config.model, "openai/gpt-5.6-luna");
+});
+
+test("AI Gateway API key takes the same gateway path", () => {
+  const config = resolveLLMRuntimeConfig({ AI_GATEWAY_API_KEY: "test-gateway-key", OPENAI_MODEL: "gpt-5.6-luna" });
+  assert.equal(config.provider, "vercel-ai-gateway");
+  assert.equal(config.model, "openai/gpt-5.6-luna");
+});
+
+test("direct OpenAI remains available as a fallback", () => {
+  const config = resolveLLMRuntimeConfig({ OPENAI_API_KEY: "test-openai-key", OPENAI_MODEL: "openai/gpt-5.6-luna" });
+  assert.equal(config.provider, "openai-direct");
+  assert.equal(config.url, "https://api.openai.com/v1/responses");
+  assert.equal(config.model, "gpt-5.6-luna");
+});
+
+test("LLM client fails clearly when no supported authentication is available", async () => {
+  const previousOpenAIKey = process.env.OPENAI_API_KEY;
+  const previousGatewayKey = process.env.AI_GATEWAY_API_KEY;
+  const previousOidcToken = process.env.VERCEL_OIDC_TOKEN;
   const previousModel = process.env.OPENAI_MODEL;
   delete process.env.OPENAI_API_KEY;
+  delete process.env.AI_GATEWAY_API_KEY;
+  delete process.env.VERCEL_OIDC_TOKEN;
   delete process.env.OPENAI_MODEL;
 
   try {
     const client = new OpenAILLMClient();
     await assert.rejects(
       () => client.parseUserConstraints({ input: "低予算で始めたい", currentConstraints: defaultUserConstraints }),
-      /OPENAI_API_KEY is not configured/,
+      /AI authentication is not configured/,
     );
   } finally {
-    if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = previousKey;
+    if (previousOpenAIKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousOpenAIKey;
+    if (previousGatewayKey === undefined) delete process.env.AI_GATEWAY_API_KEY;
+    else process.env.AI_GATEWAY_API_KEY = previousGatewayKey;
+    if (previousOidcToken === undefined) delete process.env.VERCEL_OIDC_TOKEN;
+    else process.env.VERCEL_OIDC_TOKEN = previousOidcToken;
     if (previousModel === undefined) delete process.env.OPENAI_MODEL;
     else process.env.OPENAI_MODEL = previousModel;
   }

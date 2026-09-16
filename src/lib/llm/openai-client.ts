@@ -1,7 +1,48 @@
 import type { LLMClient, GenerateHypothesesRequest, ParseConstraintsRequest } from "./types";
 import { parseConstraintSuggestion, parseMarketHypotheses } from "./validation";
 
-const RESPONSES_URL = "https://api.openai.com/v1/responses";
+const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const VERCEL_AI_GATEWAY_RESPONSES_URL = "https://ai-gateway.vercel.sh/v1/responses";
+const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
+
+type LLMRuntimeConfig = {
+  url: string;
+  apiKey: string;
+  model: string;
+  provider: "vercel-ai-gateway" | "openai-direct";
+};
+
+type RuntimeEnv = Record<string, string | undefined>;
+
+const toGatewayModel = (model: string) => (model.includes("/") ? model : `openai/${model}`);
+const toDirectOpenAIModel = (model: string) => (model.startsWith("openai/") ? model.slice("openai/".length) : model);
+
+export const resolveLLMRuntimeConfig = (env: RuntimeEnv = process.env): LLMRuntimeConfig => {
+  const configuredModel = env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+  const gatewayToken = env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN;
+
+  if (gatewayToken) {
+    return {
+      url: VERCEL_AI_GATEWAY_RESPONSES_URL,
+      apiKey: gatewayToken,
+      model: toGatewayModel(configuredModel),
+      provider: "vercel-ai-gateway",
+    };
+  }
+
+  if (env.OPENAI_API_KEY) {
+    return {
+      url: OPENAI_RESPONSES_URL,
+      apiKey: env.OPENAI_API_KEY,
+      model: toDirectOpenAIModel(configuredModel),
+      provider: "openai-direct",
+    };
+  }
+
+  throw new Error(
+    "AI authentication is not configured. Vercel production can use VERCEL_OIDC_TOKEN automatically; local development needs AI_GATEWAY_API_KEY or OPENAI_API_KEY.",
+  );
+};
 
 const constraintSchema = {
   type: "object",
@@ -77,15 +118,7 @@ const extractOutputText = (payload: ResponsesApiPayload) => {
       if (content.type === "output_text" && typeof content.text === "string") return content.text;
     }
   }
-  throw new Error("OpenAI returned no structured text output");
-};
-
-const getConfig = () => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-  if (!model) throw new Error("OPENAI_MODEL is not configured");
-  return { apiKey, model };
+  throw new Error("AI provider returned no structured text output");
 };
 
 const requestStructured = async <T>(options: {
@@ -95,18 +128,18 @@ const requestStructured = async <T>(options: {
   input: string;
   validate: (value: unknown) => T;
 }): Promise<T> => {
-  const { apiKey, model } = getConfig();
+  const config = resolveLLMRuntimeConfig();
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetch(RESPONSES_URL, {
+    const response = await fetch(config.url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model,
+        model: config.model,
         store: false,
         instructions: options.instructions,
         input: options.input,
@@ -123,7 +156,7 @@ const requestStructured = async <T>(options: {
 
     const payload = (await response.json()) as ResponsesApiPayload;
     if (!response.ok) {
-      throw new Error(payload.error?.message || `OpenAI request failed (${response.status})`);
+      throw new Error(payload.error?.message || `AI request failed (${response.status})`);
     }
 
     try {
