@@ -1,0 +1,95 @@
+name: Production AI+Web Smoke Test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/production-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check production homepage
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --max-time 30 \
+            https://market-opportunity-ai-james-c746.vercel.app/ \
+            -o /tmp/home.html
+          grep -q "市場" /tmp/home.html
+
+      - name: Run AI + Web business discovery
+        run: |
+          set -euo pipefail
+          cat > /tmp/request.json <<'JSON'
+          {
+            "mode": "personal",
+            "profile": {
+              "freeText": "初心者が少額で始められて、AIを活用しやすいビジネスを探したい。",
+              "startingBudget": 30000,
+              "weeklyHours": 12,
+              "targetMonthlyIncome": 100000,
+              "timeToFirstRevenueMonths": 3,
+              "salesComfort": 2,
+              "technicalComfort": 3,
+              "aiComfort": 4,
+              "solo": true,
+              "inventoryOkay": false,
+              "faceOnCameraOkay": false,
+              "localServiceOkay": true,
+              "riskTolerance": "medium",
+              "interests": ["AI", "Web", "動画", "小さく始める"],
+              "avoid": ["高額在庫", "大きな初期投資"]
+            }
+          }
+          JSON
+
+          status=$(curl --silent --show-error \
+            --max-time 150 \
+            --connect-timeout 20 \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/request.json \
+            -o /tmp/response.json \
+            -w '%{http_code}' \
+            https://market-opportunity-ai-james-c746.vercel.app/api/discovery/businesses)
+
+          echo "HTTP status: $status"
+          if [ "$status" != "200" ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/response.json')
+          try:
+              data=json.loads(p.read_text())
+              print('Production error:', data.get('error', data))
+          except Exception:
+              print(p.read_text()[:1000])
+          PY
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('/tmp/response.json').read_text())
+          ranking=data.get('ranking')
+          assert data.get('poolSize') == 100, f"poolSize={data.get('poolSize')}"
+          assert data.get('shortlistedCount') == 15, f"shortlistedCount={data.get('shortlistedCount')}"
+          assert isinstance(ranking, list) and len(ranking) == 10, f"ranking length={len(ranking) if isinstance(ranking,list) else 'invalid'}"
+          assert data.get('researchedCount', 0) > 0, f"researchedCount={data.get('researchedCount')}"
+          source_count=sum(len(item.get('sources') or []) for item in ranking)
+          assert source_count > 0, "No web sources returned in TOP10"
+          print('poolSize:', data['poolSize'])
+          print('shortlistedCount:', data['shortlistedCount'])
+          print('researchedCount:', data['researchedCount'])
+          print('rankingCount:', len(ranking))
+          print('sourceCount:', source_count)
+          print('topResult:', ranking[0]['business']['name'])
+          print('topFinalScore:', ranking[0]['finalScore'])
+          PY
