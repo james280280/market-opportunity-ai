@@ -57,12 +57,12 @@ export const categoryLabels: Record<(typeof evaluationCategories)[number], strin
   growth: "成長性",
   demandSupplyGap: "需要供給ギャップ",
   customerPain: "顧客課題の強さ",
-  competition: "競争環境",
+  competition: "競争環境（参入しやすいほど高得点）",
   profitability: "収益性",
-  acquisitionDifficulty: "顧客獲得難易度",
+  acquisitionDifficulty: "顧客獲得難易度（低難易度ほど高得点）",
   feasibility: "参入実行可能性",
   durability: "持続性・防御力",
-  risk: "リスク",
+  risk: "リスク（低リスクほど高得点）",
 };
 
 export const getCategoryWeights = (constraints: UserConstraints): CategoryWeights => {
