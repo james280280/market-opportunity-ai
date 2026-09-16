@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { discoverBusinesses } from "@/lib/business-discovery/service";
 import { parseDiscoveryRequest } from "@/lib/business-discovery/validation";
+import { runWithVercelOidcToken } from "@/lib/llm/openai-client";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -42,7 +43,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as unknown;
     const { profile, mode } = parseDiscoveryRequest(body);
-    const result = await discoverBusinesses(profile, mode);
+    const result = await runWithVercelOidcToken(
+      request.headers.get("x-vercel-oidc-token"),
+      () => discoverBusinesses(profile, mode),
+    );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI+Web検索に失敗しました";
