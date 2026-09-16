@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types ./src/lib/market-opportunity.test.ts"
+    "test": "tsx --test ./src/lib/market-opportunity.test.ts"
   },
   "dependencies": {
     "next": "16.3.5",
@@ -23,6 +23,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

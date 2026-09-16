@@ -1,4 +1,4 @@
-import { evaluationCategories, type Evidence, type MarketCandidate, type UserConstraints } from "./types.ts";
+import { evaluationCategories, type Evidence, type MarketCandidate, type UserConstraints } from "./types";
 
 const createEvidence = (subject: string, confidence: number, gaps: string[] = []): Evidence => ({
   facts: [`${subject} に関する既知のダミー事実を整理済み`],

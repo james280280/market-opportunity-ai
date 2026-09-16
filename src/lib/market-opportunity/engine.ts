@@ -1,4 +1,4 @@
-import { marketCandidates } from "./data.ts";
+import { marketCandidates } from "./data";
 import {
   evaluationCategories,
   type CategoryWeights,
@@ -7,7 +7,7 @@ import {
   type RankedMarket,
   type RegulatoryRisk,
   type UserConstraints,
-} from "./types.ts";
+} from "./types";
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 const round = (value: number) => Math.round(value * 10) / 10;
