@@ -8,7 +8,7 @@ import {
   rankMarkets,
   screenMarket,
 } from "./market-opportunity/engine.ts";
-import { normalizeCsvEntries } from "./market-opportunity/normalize.ts";
+import { normalizeCsvEntries, normalizeLooseText } from "./market-opportunity/normalize.ts";
 import type { MarketCandidate, UserConstraints } from "./market-opportunity/types.ts";
 
 test("weights are normalized and emphasize feasibility for constrained users", () => {
@@ -99,11 +99,12 @@ test("csv normalization preserves skill and exclusion matching", () => {
   const normalizedConstraints: UserConstraints = {
     ...defaultUserConstraints,
     skills: normalizeCsvEntries("sales, ai, product"),
-    excludedMarkets: normalizeCsvEntries("医療診断, 規制"),
+    excludedMarkets: normalizeCsvEntries("医療 診断, 規制"),
   };
 
   const evaluation = evaluateMarket(normalizedConstraints, targetMarket);
   assert.equal(normalizedConstraints.skills.length, 3);
+  assert.equal(normalizeLooseText(normalizedConstraints.excludedMarkets[0]), "医療診断");
   assert.equal(evaluation.fitBreakdown.skillFit, 100);
 
   const medicalMarket = marketCandidates.find((candidate) => candidate.id === "online-medical-diagnosis");

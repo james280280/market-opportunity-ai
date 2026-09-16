@@ -132,7 +132,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
                     className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm focus-within:ring-2 focus-within:ring-sky-500 focus-within:ring-offset-2 ${draft.riskTolerance === option.value ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-700"}`}
                   >
                     <input
-                      className="sr-only"
+                      className="size-4 accent-sky-700"
                       type="radio"
                       name="riskTolerance"
                       value={option.value}

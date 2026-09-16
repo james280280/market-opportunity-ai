@@ -1,4 +1,5 @@
 import { marketCandidates } from "./data";
+import { normalizeLooseText } from "./normalize";
 import {
   evaluationCategories,
   type CategoryWeights,
@@ -198,8 +199,8 @@ export const screenMarket = (constraints: UserConstraints, market: MarketCandida
     reasons.push(`必須スキル不足: ${missingSkills.join(", ")}`);
   }
 
-  const normalizedExclusions = constraints.excludedMarkets.map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const normalizedTags = [market.name, market.summary, market.targetCustomer, ...market.tags].map((item) => item.toLowerCase());
+  const normalizedExclusions = constraints.excludedMarkets.map((item) => normalizeLooseText(item)).filter(Boolean);
+  const normalizedTags = [market.name, market.summary, market.targetCustomer, ...market.tags].map((item) => normalizeLooseText(item));
   const matchedExclusions = normalizedExclusions.filter((item) => normalizedTags.some((tag) => tag.includes(item)));
   if (matchedExclusions.length > 0) {
     reasons.push(`除外市場に該当: ${matchedExclusions.join(", ")}`);
