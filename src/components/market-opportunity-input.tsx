@@ -133,6 +133,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
                       className="sr-only"
                       type="radio"
                       name="riskTolerance"
+                      value={option.value}
                       checked={draft.riskTolerance === option.value}
                       onChange={() => setField("riskTolerance", option.value)}
                     />

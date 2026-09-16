@@ -199,7 +199,7 @@ export const screenMarket = (constraints: UserConstraints, market: MarketCandida
   }
 
   const normalizedExclusions = constraints.excludedMarkets.map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const normalizedTags = [market.name, ...market.tags].map((item) => item.toLowerCase());
+  const normalizedTags = [market.name, market.summary, market.targetCustomer, ...market.tags].map((item) => item.toLowerCase());
   const matchedExclusions = normalizedExclusions.filter((item) => normalizedTags.some((tag) => tag.includes(item)));
   if (matchedExclusions.length > 0) {
     reasons.push(`除外市場に該当: ${matchedExclusions.join(", ")}`);

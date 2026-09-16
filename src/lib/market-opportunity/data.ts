@@ -17,14 +17,25 @@ const createCategoryEvidence = (
   uncoveredCategories: string[] = [],
 ): MarketCandidate["categoryEvidence"] => {
   return Object.fromEntries(
-    evaluationCategories.map((category) => [
-      category,
-      createEvidence(
+    evaluationCategories.map((category) => {
+      const isUncovered = uncoveredCategories.includes(category);
+      const evidence = createEvidence(
         `${seed} / ${category}`,
         confidence,
-        uncoveredCategories.includes(category) ? ["追加の一次ヒアリングが必要"] : [],
-      ),
-    ]),
+        isUncovered ? ["追加の一次ヒアリングが必要"] : [],
+      );
+
+      return [
+        category,
+        isUncovered
+          ? {
+              ...evidence,
+              facts: [],
+              supportingEvidence: [],
+            }
+          : evidence,
+      ];
+    }),
   ) as MarketCandidate["categoryEvidence"];
 };
 

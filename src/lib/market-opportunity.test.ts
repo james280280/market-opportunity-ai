@@ -71,7 +71,7 @@ test("evaluation separates opportunity, fit, and evidence metrics", () => {
   assert.equal(evaluation.opportunityScore > 0, true);
   assert.equal(evaluation.fitScore > 0, true);
   assert.equal(evaluation.evidenceConfidence, evidence.evidenceConfidence);
-  assert.equal(evaluation.evidenceCoverage, 100);
+  assert.equal(evaluation.evidenceCoverage, 90);
 });
 
 test("evidence coverage falls when a category has no facts or support", () => {
@@ -109,5 +109,25 @@ test("csv normalization preserves skill and exclusion matching", () => {
   const medicalMarket = marketCandidates.find((candidate) => candidate.id === "online-medical-diagnosis");
   assert.ok(medicalMarket);
   const screening = screenMarket(normalizedConstraints, medicalMarket);
+  assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
+});
+
+test("excluded market matching also checks summary text", () => {
+  const summaryMatchedMarket: MarketCandidate = {
+    ...marketCandidates[0],
+    id: "summary-exclusion-check",
+    name: "非一致な市場名",
+    tags: ["B2B"],
+    summary: "この市場は物流自動化の検証を支援する。",
+  };
+
+  const screening = screenMarket(
+    {
+      ...defaultUserConstraints,
+      excludedMarkets: ["物流自動化"],
+    },
+    summaryMatchedMarket,
+  );
+
   assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
 });
