@@ -1,9 +1,12 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { LLMClient, GenerateHypothesesRequest, ParseConstraintsRequest } from "./types";
 import { parseConstraintSuggestion, parseMarketHypotheses } from "./validation";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const VERCEL_AI_GATEWAY_RESPONSES_URL = "https://ai-gateway.vercel.sh/v1/responses";
 const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
+
+const requestOidcTokenStorage = new AsyncLocalStorage<string | undefined>();
 
 type LLMRuntimeConfig = {
   url: string;
@@ -17,9 +20,15 @@ type RuntimeEnv = Record<string, string | undefined>;
 const toGatewayModel = (model: string) => (model.includes("/") ? model : `openai/${model}`);
 const toDirectOpenAIModel = (model: string) => (model.startsWith("openai/") ? model.slice("openai/".length) : model);
 
+export const runWithVercelOidcToken = <T>(
+  token: string | null | undefined,
+  operation: () => T,
+): T => requestOidcTokenStorage.run(token?.trim() || undefined, operation);
+
 export const resolveLLMRuntimeConfig = (env: RuntimeEnv = process.env): LLMRuntimeConfig => {
   const configuredModel = env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
-  const gatewayToken = env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN;
+  const requestOidcToken = requestOidcTokenStorage.getStore();
+  const gatewayToken = env.AI_GATEWAY_API_KEY || requestOidcToken || env.VERCEL_OIDC_TOKEN;
 
   if (gatewayToken) {
     return {
@@ -40,7 +49,7 @@ export const resolveLLMRuntimeConfig = (env: RuntimeEnv = process.env): LLMRunti
   }
 
   throw new Error(
-    "AI authentication is not configured. Vercel production can use VERCEL_OIDC_TOKEN automatically; local development needs AI_GATEWAY_API_KEY or OPENAI_API_KEY.",
+    "AI authentication is not configured. Vercel production uses the request-scoped OIDC token; local development needs AI_GATEWAY_API_KEY or OPENAI_API_KEY.",
   );
 };
 
