@@ -4,10 +4,12 @@ export const normalizeCsvEntries = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-export const normalizeLooseText = (value: string) => value.toLowerCase().replace(/\s+/g, "").trim();
+export const normalizeLooseText = (value: string) =>
+  value.normalize("NFKC").toLowerCase().replace(/\s+/g, "").trim();
 
 const skillAliasMap: Record<string, string> = {
   "営業": "sales",
+  "セールス": "sales",
   "sales": "sales",
   "運用": "operations",
   "オペレーション": "operations",
@@ -15,6 +17,8 @@ const skillAliasMap: Record<string, string> = {
   "ai": "ai",
   "人工知能": "ai",
   "プロダクト": "product",
+  "商品企画": "product",
+  "プロダクト開発": "product",
   "product": "product",
   "hardware": "hardware",
   "ハードウェア": "hardware",
