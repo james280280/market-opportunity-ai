@@ -5,6 +5,19 @@ import { rankMarkets } from "@/lib/market-opportunity/engine";
 import { OpenAILLMClient } from "./openai-client";
 import { applyConstraintSuggestion, parseConstraintSuggestion, parseMarketHypotheses } from "./validation";
 
+const makeHypothesis = (index: number) => ({
+  id: `hypothesis-${index}`,
+  name: `市場仮説 ${index}`,
+  summary: "反復業務を軽量に支援する未評価の仮説",
+  targetCustomer: "中小企業",
+  whyItMightFit: "少人数で検証しやすい",
+  assumptions: ["反復業務が残っている"],
+  unknowns: ["支払い意欲"],
+  suggestedValidation: ["5社ヒアリング"],
+});
+
+const fiveHypotheses = () => Array.from({ length: 5 }, (_, index) => makeHypothesis(index + 1));
+
 test("null LLM fields do not overwrite existing user constraints", () => {
   const suggestion = parseConstraintSuggestion({
     budget: null,
@@ -40,38 +53,20 @@ test("malformed structured constraint output is rejected", () => {
 });
 
 test("market hypotheses are validated without scores", () => {
-  const hypotheses = parseMarketHypotheses([
-    {
-      id: "small-b2b-tool",
-      name: "小規模B2B業務支援",
-      summary: "反復業務を軽量に支援する仮説",
-      targetCustomer: "中小企業",
-      whyItMightFit: "少人数で検証しやすい",
-      assumptions: ["反復業務が残っている"],
-      unknowns: ["支払い意欲"],
-      suggestedValidation: ["5社ヒアリング"],
-    },
-  ]);
+  const hypotheses = parseMarketHypotheses(fiveHypotheses());
 
-  assert.equal(hypotheses.length, 1);
+  assert.equal(hypotheses.length, 5);
   assert.equal("opportunityScore" in hypotheses[0], false);
   assert.equal("categoryScores" in hypotheses[0], false);
 });
 
+test("fewer than five market hypotheses are rejected", () => {
+  assert.throws(() => parseMarketHypotheses([makeHypothesis(1)]), /5 to 10 items/);
+});
+
 test("AI hypothesis validation does not alter deterministic ranking inputs", () => {
   const before = rankMarkets(defaultUserConstraints, marketCandidates).map((item) => item.market.id);
-  parseMarketHypotheses([
-    {
-      id: "unranked-hypothesis",
-      name: "未評価仮説",
-      summary: "ランキングには混ぜない",
-      targetCustomer: "仮説顧客",
-      whyItMightFit: "条件仮説",
-      assumptions: [],
-      unknowns: ["実データ未取得"],
-      suggestedValidation: ["一次調査"],
-    },
-  ]);
+  parseMarketHypotheses(fiveHypotheses());
   const after = rankMarkets(defaultUserConstraints, marketCandidates).map((item) => item.market.id);
   assert.deepEqual(after, before);
 });
