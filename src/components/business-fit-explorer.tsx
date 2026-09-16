@@ -7,12 +7,14 @@ import type { BusinessDiscoveryMode, BusinessProfile } from "@/lib/business-fit/
 import { parseDiscoveryRequest } from "@/lib/business-discovery/validation";
 import type { BusinessDiscoveryResponse, LiveBusinessResult } from "@/lib/business-discovery/types";
 
-const splitCsv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+const splitCsv = (value: string) => value.split(/[,、，\n]/).map((item) => item.trim()).filter(Boolean);
 
 type ApiError = { error?: string };
 
 export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) => {
   const [draft, setDraft] = useState<BusinessProfile>(defaultBusinessProfile);
+  const [interestsInput, setInterestsInput] = useState(defaultBusinessProfile.interests.join(", "));
+  const [avoidInput, setAvoidInput] = useState(defaultBusinessProfile.avoid.join(", "));
   const [submitted, setSubmitted] = useState<BusinessProfile>(defaultBusinessProfile);
   const [hasRun, setHasRun] = useState(false);
   const [liveResult, setLiveResult] = useState<BusinessDiscoveryResponse | null>(null);
@@ -122,13 +124,13 @@ export const BusinessFitExplorer = ({ mode }: { mode: BusinessDiscoveryMode }) =
             <label className="grid gap-2">
               <span className="text-sm font-semibold">興味があること</span>
               <span className="text-xs text-slate-500">カンマで区切る。例：AI, ゲーム, 動画, ファッション</span>
-              <input className="rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-violet-500" value={draft.interests.join(", ")} onChange={(event) => setField("interests", splitCsv(event.target.value))} />
+              <input className="rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-violet-500" value={interestsInput} onChange={(event) => { setInterestsInput(event.target.value); setField("interests", splitCsv(event.target.value)); }} />
             </label>
 
             <label className="grid gap-2">
               <span className="text-sm font-semibold">絶対にやりたくないこと</span>
               <span className="text-xs text-slate-500">空欄でもOK。例：営業, 店舗, 広告</span>
-              <input className="rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-violet-500" value={draft.avoid.join(", ")} onChange={(event) => setField("avoid", splitCsv(event.target.value))} />
+              <input className="rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-violet-500" value={avoidInput} onChange={(event) => { setAvoidInput(event.target.value); setField("avoid", splitCsv(event.target.value)); }} />
             </label>
 
             <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">

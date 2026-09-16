@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAIServiceError } from "@/lib/llm/service-error";
 import { discoverBusinesses } from "@/lib/business-discovery/service";
 import { parseDiscoveryRequest } from "@/lib/business-discovery/validation";
 import { runWithVercelOidcToken } from "@/lib/llm/openai-client";
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
     );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    const serviceError = getAIServiceError(error);
+    if (serviceError) return NextResponse.json({ error: serviceError.error }, { status: serviceError.status });
     const message = error instanceof Error ? error.message : "AI+Web検索に失敗しました";
     const authError =
       message.includes("AI authentication is not configured") ||

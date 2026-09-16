@@ -128,3 +128,18 @@ test("LLM client fails clearly when no supported authentication is available", a
     else process.env.OPENAI_MODEL = previousModel;
   }
 });
+
+
+
+test("provider billing and credential failures have actionable messages without upstream details", async () => {
+  const { getAIServiceError } = await import("./service-error");
+  const billing = getAIServiceError(new Error("AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/private"));
+  assert.equal(billing?.status, 503);
+  assert.match(billing?.error ?? "", /請求設定/);
+  assert.doesNotMatch(billing?.error ?? "", /https:|AI Gateway/);
+  const auth = getAIServiceError(new Error("OPENAI_API_KEY is missing"));
+  assert.equal(auth?.status, 503);
+  assert.doesNotMatch(auth?.error ?? "", /API_KEY/);
+  assert.equal(getAIServiceError(new DOMException("timeout", "TimeoutError"))?.status, 504);
+  assert.equal(getAIServiceError(new Error("入力形式が正しくありません")), null);
+});
