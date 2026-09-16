@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { BusinessModel, RiskTolerance, UserConstraints } from "@/lib/market-opportunity/types";
 import { formatCurrency } from "@/lib/market-opportunity/engine";
+import { normalizeCsvEntries } from "@/lib/market-opportunity/normalize";
 
 type InputScreenProps = {
   draft: UserConstraints;
@@ -107,7 +108,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
               <input
                 className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-sky-500"
                 value={draft.skills.join(", ")}
-                onChange={(event) => setField("skills", [event.target.value])}
+                onChange={(event) => setField("skills", normalizeCsvEntries(event.target.value))}
               />
             </label>
 
@@ -116,7 +117,7 @@ export const InputScreen = ({ draft, onChange, onSubmit, candidateCount }: Input
               <input
                 className="rounded-2xl border border-slate-300 px-4 py-3 outline-none transition focus:border-sky-500"
                 value={draft.excludedMarkets.join(", ")}
-                onChange={(event) => setField("excludedMarkets", [event.target.value])}
+                onChange={(event) => setField("excludedMarkets", normalizeCsvEntries(event.target.value))}
               />
             </label>
 

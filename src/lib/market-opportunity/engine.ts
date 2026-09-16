@@ -11,6 +11,13 @@ import {
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 const round = (value: number) => Math.round(value * 10) / 10;
+const calculateCapacityFit = (required: number, available: number) => {
+  if (available <= 0) {
+    return required <= 0 ? 100 : 0;
+  }
+
+  return required <= available ? 100 : clamp(100 - ((required - available) / available) * 100);
+};
 
 const regulatoryRiskPenalty: Record<RegulatoryRisk, number> = {
   low: 10,
@@ -99,23 +106,11 @@ const calculateOpportunityScore = (market: MarketCandidate, weights: CategoryWei
 };
 
 const calculateFitBreakdown = (constraints: UserConstraints, market: MarketCandidate): FitBreakdown => {
-  const budgetFit =
-    market.budgetRequired <= constraints.budget
-      ? 100
-      : clamp(100 - ((market.budgetRequired - constraints.budget) / constraints.budget) * 100);
+  const budgetFit = calculateCapacityFit(market.budgetRequired, constraints.budget);
 
-  const teamFit =
-    market.teamRequired <= constraints.teamSize
-      ? 100
-      : clamp(100 - ((market.teamRequired - constraints.teamSize) / constraints.teamSize) * 100);
+  const teamFit = calculateCapacityFit(market.teamRequired, constraints.teamSize);
 
-  const timeframeFit =
-    market.minimumDurationMonths <= constraints.timeframeMonths
-      ? 100
-      : clamp(
-          100 -
-            ((market.minimumDurationMonths - constraints.timeframeMonths) / constraints.timeframeMonths) * 100,
-        );
+  const timeframeFit = calculateCapacityFit(market.minimumDurationMonths, constraints.timeframeMonths);
 
   const matchedSkills = market.requiredSkills.filter((skill) => constraints.skills.includes(skill)).length;
   const skillFit = market.requiredSkills.length === 0 ? 100 : round((matchedSkills / market.requiredSkills.length) * 100);

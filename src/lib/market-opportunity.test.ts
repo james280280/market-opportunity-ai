@@ -8,6 +8,7 @@ import {
   rankMarkets,
   screenMarket,
 } from "./market-opportunity/engine.ts";
+import { normalizeCsvEntries } from "./market-opportunity/normalize.ts";
 import type { MarketCandidate, UserConstraints } from "./market-opportunity/types.ts";
 
 test("weights are normalized and emphasize feasibility for constrained users", () => {
@@ -89,4 +90,24 @@ test("evidence coverage falls when a category has no facts or support", () => {
 
   const metrics = calculateEvidenceMetrics(incompleteMarket);
   assert.equal(metrics.evidenceCoverage, 90);
+});
+
+test("csv normalization preserves skill and exclusion matching", () => {
+  const targetMarket = marketCandidates.find((candidate) => candidate.id === "field-sales-training-saas");
+  assert.ok(targetMarket);
+
+  const normalizedConstraints: UserConstraints = {
+    ...defaultUserConstraints,
+    skills: normalizeCsvEntries("sales, ai, product"),
+    excludedMarkets: normalizeCsvEntries("医療診断, 規制"),
+  };
+
+  const evaluation = evaluateMarket(normalizedConstraints, targetMarket);
+  assert.equal(normalizedConstraints.skills.length, 3);
+  assert.equal(evaluation.fitBreakdown.skillFit, 100);
+
+  const medicalMarket = marketCandidates.find((candidate) => candidate.id === "online-medical-diagnosis");
+  assert.ok(medicalMarket);
+  const screening = screenMarket(normalizedConstraints, medicalMarket);
+  assert.ok(screening.reasons.some((reason) => reason.includes("除外市場")));
 });

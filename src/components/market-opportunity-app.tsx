@@ -20,11 +20,7 @@ export const MarketOpportunityApp = () => {
   const selectedMarket = ranking.find((item) => item.market.id === selectedId) ?? ranking[0] ?? null;
 
   const handleRunRanking = () => {
-    setSubmittedConstraints({
-      ...draft,
-      excludedMarkets: normalizeCsv(draft.excludedMarkets),
-      skills: normalizeCsv(draft.skills),
-    });
+    setSubmittedConstraints({ ...draft });
     setSelectedId(null);
     setScreen("ranking");
   };
@@ -61,8 +57,3 @@ export const MarketOpportunityApp = () => {
   );
 };
 
-const normalizeCsv = (items: string[]) =>
-  items
-    .flatMap((item) => item.split(","))
-    .map((item) => item.trim())
-    .filter(Boolean);

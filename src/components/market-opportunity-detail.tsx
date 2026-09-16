@@ -75,7 +75,7 @@ export const DetailScreen = ({ result, constraints, onBackToRanking, onBackToInp
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {Object.entries(result.fitBreakdown).map(([key, value]) => (
                 <div key={key} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{key}</p>
+                  <p className="text-xs font-medium tracking-wide text-slate-500">{fitBreakdownLabels[key as keyof typeof result.fitBreakdown]}</p>
                   <p className="mt-1 text-lg font-semibold">{formatPercent(value)}</p>
                 </div>
               ))}
@@ -125,6 +125,16 @@ const MetricCard = ({ label, value }: { label: string; value: string }) => (
     <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
   </div>
 );
+
+const fitBreakdownLabels = {
+  budgetFit: "予算適合",
+  teamFit: "人数適合",
+  timeframeFit: "期間適合",
+  skillFit: "スキル適合",
+  regionFit: "地域適合",
+  businessModelFit: "ビジネスモデル適合",
+  riskFit: "リスク適合",
+};
 
 const EvidenceBlock = ({
   title,
