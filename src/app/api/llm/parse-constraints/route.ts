@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OpenAILLMClient } from "@/lib/llm/openai-client";
+import { OpenAILLMClient, runWithVercelOidcToken } from "@/lib/llm/openai-client";
 import type { ParseConstraintsRequest } from "@/lib/llm/types";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -21,7 +21,10 @@ export async function POST(request: Request) {
     }
 
     const client = new OpenAILLMClient();
-    const suggestion = await client.parseUserConstraints(body as unknown as ParseConstraintsRequest);
+    const suggestion = await runWithVercelOidcToken(
+      request.headers.get("x-vercel-oidc-token"),
+      () => client.parseUserConstraints(body as unknown as ParseConstraintsRequest),
+    );
     return NextResponse.json({ suggestion });
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI条件整理に失敗しました";
