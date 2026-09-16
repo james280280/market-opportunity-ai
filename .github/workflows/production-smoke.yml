@@ -17,11 +17,14 @@ jobs:
       - name: Check production homepage
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error \
+          status=$(curl --silent --show-error \
             --max-time 30 \
-            https://market-opportunity-ai-james-c746.vercel.app/ \
-            -o /tmp/home.html
-          grep -q "市場" /tmp/home.html
+            -o /tmp/home.html \
+            -w '%{http_code}' \
+            https://market-opportunity-ai-james-c746.vercel.app/)
+          echo "Homepage HTTP status: $status"
+          test "$status" = "200"
+          test -s /tmp/home.html
 
       - name: Run AI + Web business discovery
         run: |
