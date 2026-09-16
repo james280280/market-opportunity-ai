@@ -94,8 +94,8 @@ export const applyConstraintSuggestion = (
 });
 
 export const parseMarketHypotheses = (value: unknown): GeneratedMarketHypothesis[] => {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
-    throw new Error("LLM hypotheses response must contain 1 to 10 items");
+  if (!Array.isArray(value) || value.length < 5 || value.length > 10) {
+    throw new Error("LLM hypotheses response must contain 5 to 10 items");
   }
 
   const seenIds = new Set<string>();
