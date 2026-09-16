@@ -22,7 +22,6 @@ const intensityFit = (intensity: number, comfort: number) => {
 };
 
 const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/\s+/g, "").trim();
-
 const riskRank: Record<RiskTolerance, number> = { low: 1, medium: 2, high: 3 };
 
 const calculateRiskFit = (profile: BusinessProfile, business: BusinessCandidate) => {
@@ -37,7 +36,9 @@ const calculateInterestFit = (profile: BusinessProfile, business: BusinessCandid
     .filter((value) => value.length >= 2);
 
   if (signals.length === 0) return 70;
-  const matches = signals.filter((signal) => searchable.includes(signal) || business.tags.some((tag) => signal.includes(normalize(tag))));
+  const matches = signals.filter(
+    (signal) => searchable.includes(signal) || business.tags.some((tag) => signal.includes(normalize(tag))),
+  );
   return matches.length === 0 ? 55 : clamp(70 + Math.min(matches.length, 3) * 10);
 };
 
@@ -64,6 +65,7 @@ const calculateBreakdown = (profile: BusinessProfile, business: BusinessCandidat
     timeFit: round(capacityFit(business.requiredWeeklyHours, profile.weeklyHours)),
     capabilityFit: round(salesFit * 0.35 + technicalFit * 0.35 + aiFit * 0.3),
     monetizationSpeedFit: round(monetizationSpeedFit),
+    incomeGoalFit: round(capacityFit(profile.targetMonthlyIncome, business.estimatedMonthlyIncomePotential)),
     operatingStyleFit: round(calculateOperatingStyleFit(profile, business)),
     riskFit: round(calculateRiskFit(profile, business)),
     interestFit: round(calculateInterestFit(profile, business)),
@@ -89,6 +91,7 @@ const breakdownLabels: Record<keyof BusinessFitBreakdown, string> = {
   timeFit: "週の投入時間が条件に合う",
   capabilityFit: "現在のスキル・AI活用力と相性が良い",
   monetizationSpeedFit: "希望する収益化速度に合う",
+  incomeGoalFit: "目標月収に届く余地がある",
   operatingStyleFit: "1人運営・在庫・顔出し等の条件に合う",
   riskFit: "リスク許容度に合う",
   interestFit: "興味分野と近い",
@@ -100,8 +103,9 @@ export const evaluateBusiness = (profile: BusinessProfile, business: BusinessCan
     breakdown.budgetFit * 0.15 +
       breakdown.timeFit * 0.15 +
       breakdown.capabilityFit * 0.2 +
-      breakdown.monetizationSpeedFit * 0.15 +
-      breakdown.operatingStyleFit * 0.15 +
+      breakdown.monetizationSpeedFit * 0.1 +
+      breakdown.incomeGoalFit * 0.1 +
+      breakdown.operatingStyleFit * 0.1 +
       breakdown.riskFit * 0.1 +
       breakdown.interestFit * 0.1,
   );
