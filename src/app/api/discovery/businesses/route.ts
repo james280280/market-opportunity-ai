@@ -5,7 +5,7 @@ import { parseDiscoveryRequest } from "@/lib/business-discovery/validation";
 import { runWithVercelOidcToken } from "@/lib/llm/openai-client";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 3;
@@ -72,4 +72,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
