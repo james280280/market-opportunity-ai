@@ -5,6 +5,16 @@ export type WebResearchSource = {
   url: string;
 };
 
+export type BusinessScreeningResearch = {
+  candidateId: string;
+  demand: number;
+  growth: number;
+  competitionAttractiveness: number;
+  confidence: number;
+  summary: string;
+  sourceUrls: string[];
+};
+
 export type BusinessMarketResearch = {
   candidateId: string;
   demand: number;
@@ -12,8 +22,11 @@ export type BusinessMarketResearch = {
   competitionAttractiveness: number;
   profitability: number;
   entryEase: number;
+  incomeGoalFit: number;
   confidence: number;
   summary: string;
+  maxRisk: string;
+  validationPlan: string[];
   sourceUrls: string[];
 };
 
@@ -23,12 +36,16 @@ export type LiveBusinessResult = {
   personalFitScore: number;
   marketOpportunityScore: number;
   finalScore: number;
+  evidenceConfidence: number;
+  evidenceCoverage: number;
   confidence: number;
   blocked: boolean;
   blockers: string[];
   topReasons: string[];
-  researchStatus: "verified" | "unverified" | "unavailable";
+  researchStatus: "verified" | "screened" | "unverified" | "unavailable";
   researchSummary: string;
+  maxRisk: string;
+  validationPlan: string[];
   sources: WebResearchSource[];
 };
 
@@ -36,9 +53,11 @@ export type BusinessDiscoveryResponse = {
   mode: BusinessDiscoveryMode;
   warnings: string[];
   poolSize: number;
+  preselectedCount: number;
+  screenedCount: number;
   shortlistedCount: number;
   researchedCount: number;
+  cacheHits: number;
   generatedAt: string;
   ranking: LiveBusinessResult[];
 };
-
