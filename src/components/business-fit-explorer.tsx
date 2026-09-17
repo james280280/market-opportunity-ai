@@ -10,6 +10,8 @@ import type { BusinessDiscoveryResponse, LiveBusinessResult } from "@/lib/busine
 const splitCsv = (value: string) => value.split(/[,、，\n]/).map((item) => item.trim()).filter(Boolean);
 type ApiError = { error?: string };
 
+const DISCOVERY_TIMEOUT_MS = 285000;
+
 export const BusinessFitExplorer = () => {
   const [draft, setDraft] = useState<BusinessProfile>(defaultBusinessProfile);
   const [interestsInput, setInterestsInput] = useState(defaultBusinessProfile.interests.join(", "));
@@ -42,7 +44,7 @@ export const BusinessFitExplorer = () => {
     try {
       const response = await fetch("/api/discovery/businesses", {
         method: "POST",
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(115000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(DISCOVERY_TIMEOUT_MS)]),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profile: draft }),
       });
@@ -52,7 +54,7 @@ export const BusinessFitExplorer = () => {
     } catch (requestError) {
       if (!controller.signal.aborted) {
         setError(requestError instanceof Error && requestError.name === "TimeoutError"
-          ? "調査が時間内に終わりませんでした。少し待ってから再実行してください。"
+          ? "調査が5分近くかかっても完了しませんでした。通信状態を確認して再実行してください。"
           : requestError instanceof Error ? requestError.message : "AI+Web検索に失敗しました");
       }
     } finally {
@@ -151,7 +153,7 @@ export const BusinessFitExplorer = () => {
       {loading ? (
         <section className="rounded-3xl border border-violet-200 bg-violet-50 p-6 text-sm text-violet-950">
           <p className="font-semibold">候補生成 → 条件選別 → 簡易Web調査 → 詳細Web調査の順で処理しています。</p>
-          <p className="mt-2 text-violet-800">Web調査を2段階にしたため、以前より失敗時の影響を小さくしています。</p>
+          <p className="mt-2 text-violet-800">100候補の生成とWeb調査を行うため、通常1〜4分ほどかかる場合があります。この画面を閉じずに待ってください。</p>
         </section>
       ) : null}
 
