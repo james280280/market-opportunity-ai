@@ -178,6 +178,24 @@ const LiveRanking = ({ result }: { result: BusinessDiscoveryResponse }) => (
         生成 {result.poolSize}件 → 条件選別 {result.preselectedCount}件 → 簡易調査 {result.screenedCount}件 → 詳細調査 {result.researchedCount}件
         {result.cacheHits > 0 ? `（再利用できた調査 ${result.cacheHits}件）` : ""}
       </p>
+      {result.runCostUsd != null || result.creditsRemainingUsd != null ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {result.runCostUsd != null ? (
+            <div className="rounded-2xl bg-emerald-50 p-4">
+              <p className="text-xs font-semibold text-emerald-700">今回のAI Gateway消費額</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-950">${result.runCostUsd.toFixed(4)}</p>
+              <p className="mt-1 text-[11px] leading-4 text-emerald-800">検索前後のAI Gateway総使用額の差分です。</p>
+            </div>
+          ) : null}
+          {result.creditsRemainingUsd != null ? (
+            <div className="rounded-2xl bg-sky-50 p-4">
+              <p className="text-xs font-semibold text-sky-700">AIクレジット残高</p>
+              <p className="mt-1 text-2xl font-bold text-sky-950">${result.creditsRemainingUsd.toFixed(4)}</p>
+              <p className="mt-1 text-[11px] leading-4 text-sky-800">Vercel AI Gatewayの検索完了時点の残高です。</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {result.warnings.length > 0 ? (
         <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
           {result.warnings.map((warning) => <p key={warning}>・{warning}</p>)}
