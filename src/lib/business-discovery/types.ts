@@ -59,5 +59,7 @@ export type BusinessDiscoveryResponse = {
   researchedCount: number;
   cacheHits: number;
   generatedAt: string;
+  runCostUsd: number | null;
+  creditsRemainingUsd: number | null;
   ranking: LiveBusinessResult[];
 };
