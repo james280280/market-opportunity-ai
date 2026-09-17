@@ -1,13 +1,14 @@
 import type { BusinessDiscoveryMode, BusinessProfile, RiskTolerance } from "@/lib/business-fit/types";
 
 const riskLevels = new Set<RiskTolerance>(["low", "medium", "high"]);
-const modes = new Set<BusinessDiscoveryMode>(["personal", "hybrid"]);
+const legacyModes = new Set<BusinessDiscoveryMode>(["personal", "hybrid"]);
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
 export const parseDiscoveryRequest = (value: unknown): { profile: BusinessProfile; mode: BusinessDiscoveryMode } => {
-  if (!isObject(value) || !isObject(value.profile) || typeof value.mode !== "string" || !modes.has(value.mode as BusinessDiscoveryMode)) {
+  if (!isObject(value) || !isObject(value.profile)) throw new Error("入力形式が正しくありません");
+  if (value.mode !== undefined && (typeof value.mode !== "string" || !legacyModes.has(value.mode as BusinessDiscoveryMode))) {
     throw new Error("入力形式が正しくありません");
   }
 
@@ -45,7 +46,7 @@ export const parseDiscoveryRequest = (value: unknown): { profile: BusinessProfil
   if (interests.length > 30 || avoid.length > 30) throw new Error("入力項目が多すぎます");
 
   return {
-    mode: value.mode as BusinessDiscoveryMode,
+    mode: "hybrid",
     profile: {
       freeText: freeText.trim(),
       startingBudget,
@@ -65,4 +66,3 @@ export const parseDiscoveryRequest = (value: unknown): { profile: BusinessProfil
     },
   };
 };
-
