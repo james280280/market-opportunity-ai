@@ -133,3 +133,72 @@ test("discovery generates 25x4 candidates, screens 20, deeply researches 10, and
   assert.ok(result.ranking.every((item) => item.sources.length === 1));
   mock.mock.restore();
 });
+
+test("discovery continues with the usable pool when one generation lane and its refill time out", async (t) => {
+  const previousKey = process.env.AI_GATEWAY_API_KEY;
+  process.env.AI_GATEWAY_API_KEY = "test-only-placeholder";
+  t.after(() => {
+    if (previousKey === undefined) delete process.env.AI_GATEWAY_API_KEY;
+    else process.env.AI_GATEWAY_API_KEY = previousKey;
+  });
+
+  let generationCalls = 0;
+  const mock = t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    const schemaName = String(body.text?.format?.name ?? "");
+
+    if (!body.tools) {
+      const batch = generationCalls++;
+      if (batch === 0 || batch === 4) throw new DOMException("timed out", "TimeoutError");
+      const candidates = Array.from({ length: 25 }, (_, index) => ({
+        name: `耐障害候補-${batch}-${index}`,
+        summary: `一部失敗時の継続を確認する事業候補 ${batch}-${index}`,
+        category: `耐障害カテゴリ${batch}`,
+        requiredBudget: 10000,
+        requiredWeeklyHours: 5,
+        monthsToFirstRevenue: 2,
+        minimumTeamSize: 1,
+        salesIntensity: 2,
+        technicalIntensity: 2,
+        aiLeverage: 4,
+        inventoryRequired: false,
+        faceOnCameraRequired: false,
+        localServiceRequired: false,
+        riskLevel: "medium",
+        tags: ["AI", "テスト"],
+        maxRisk: "顧客獲得に時間がかかる可能性",
+      }));
+      return Response.json({ output: [{ content: [{ type: "output_text", text: JSON.stringify({ candidates }) }] }] });
+    }
+
+    const input = JSON.parse(body.input);
+    const cited = { type: "web_search_call", action: { sources: [{ url: "https://example.com/resilience", title: "Resilience" }] } };
+    const common = input.candidates.map((candidate: { id: string }) => ({
+      candidateId: candidate.id,
+      demand: 75,
+      growth: 70,
+      competitionAttractiveness: 65,
+      confidence: 80,
+      summary: "取得済み候補を使ってWeb調査を完了しました。",
+      sourceUrls: ["https://example.com/resilience"],
+    }));
+    const research = schemaName.startsWith("business_screening_")
+      ? common
+      : common.map((item: typeof common[number]) => ({
+        ...item,
+        profitability: 75,
+        entryEase: 80,
+        incomeGoalFit: 70,
+        maxRisk: "集客経路を確立できない可能性",
+        validationPlan: Array.from({ length: 7 }, (_, index) => `検証ステップ${index + 1}`),
+      }));
+    return Response.json({ output: [cited, { content: [{ type: "output_text", text: JSON.stringify({ research }) }] }] });
+  });
+
+  const result = await discoverBusinesses(defaultBusinessProfile, "hybrid");
+  assert.equal(generationCalls, 5);
+  assert.equal(result.poolSize, 75);
+  assert.equal(result.ranking.length, 10);
+  assert.ok(result.warnings.some((warning) => warning.includes("75件で続行")));
+  mock.mock.restore();
+});
